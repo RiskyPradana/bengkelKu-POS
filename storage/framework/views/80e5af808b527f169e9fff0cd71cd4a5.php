@@ -1,0 +1,178 @@
+<div class="p-4 space-y-4">
+
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!$showResult): ?>
+    
+    <div class="text-center space-y-4">
+        <h2 class="text-lg font-bold text-white">&#x1F4F7; Scan Barcode / QR</h2>
+        <p class="text-slate-400 text-sm">Arahkan kamera ke barcode atau QR code sparepart</p>
+
+        
+        <div class="relative bg-slate-800 rounded-2xl overflow-hidden" style="height:300px"
+             x-data="barcodeScanner()"
+             x-init="init()"
+             x-on:scanned="$wire.onScanned($event.detail)">
+
+            <video id="preview" class="w-full h-full object-cover" autoplay muted playsinline></video>
+
+            
+            <div class="absolute inset-0 flex items-center justify-center">
+                <div class="w-56 h-56 border-2 border-amber-400 rounded-2xl relative">
+                    <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-amber-400 rounded-tl-xl"></div>
+                    <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-amber-400 rounded-tr-xl"></div>
+                    <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-amber-400 rounded-bl-xl"></div>
+                    <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-amber-400 rounded-br-xl"></div>
+                    <div class="absolute top-1/2 -translate-y-0.5 inset-x-0 h-0.5 bg-amber-400 opacity-70 animate-pulse"></div>
+                </div>
+            </div>
+
+            <div x-show="error" class="absolute bottom-4 inset-x-4 bg-red-500/80 text-white text-xs text-center py-2 rounded-xl" x-text="error"></div>
+        </div>
+
+        
+        <div class="flex gap-2">
+            <input wire:model="scannedCode" type="text" placeholder="Atau ketik kode manual..."
+                class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none">
+            <button type="button" wire:click="onScanned('<?php echo e($scannedCode); ?>')"
+                class="px-4 py-3 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-600">
+                &#x1F50D;
+            </button>
+        </div>
+    </div>
+    <?php else: ?>
+    
+    <div class="space-y-4">
+        <div class="flex items-center gap-3">
+            <button type="button" wire:click="resetScan" class="text-slate-400 hover:text-white">
+                &#x2190; Scan Lagi
+            </button>
+        </div>
+
+        
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($foundProduct): ?>
+        <div class="bg-slate-800 rounded-2xl p-4 space-y-3">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-amber-400/20 rounded-xl flex items-center justify-center text-2xl">&#x1F4E6;</div>
+                <div>
+                    <p class="font-bold text-white"><?php echo e($foundProduct->name); ?></p>
+                    <p class="text-xs text-slate-400">SKU: <?php echo e($foundProduct->sku); ?></p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 pt-1">
+                <div class="bg-slate-700 rounded-xl p-3 text-center">
+                    <p class="text-xs text-slate-400">Harga Jual</p>
+                    <p class="font-bold text-amber-400">Rp <?php echo e(number_format($foundProduct->sell_price,0,',','.')); ?></p>
+                </div>
+                <div class="bg-slate-700 rounded-xl p-3 text-center">
+                    <p class="text-xs text-slate-400">Stok Cabang</p>
+                    <p class="font-bold <?php echo e(($stock?->quantity ?? 0) > 0 ? 'text-green-400' : 'text-red-400'); ?>">
+                        <?php echo e($stock?->quantity ?? 0); ?> unit
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($addedToWo): ?>
+        <div class="bg-green-500/20 border border-green-500/40 rounded-2xl p-4 text-center">
+            <p class="text-green-400 font-semibold">&#x2705; Berhasil ditambahkan ke Work Order!</p>
+        </div>
+        <?php else: ?>
+        
+        <div class="bg-slate-800 rounded-2xl p-4 space-y-3">
+            <p class="text-sm font-semibold text-white">Tambahkan ke Work Order</p>
+            <select wire:model="selectedWoId"
+                class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                <option value="">-- Pilih Work Order Aktif --</option>
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__currentLoopData = $activeWorkOrders; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $wo): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <option value="<?php echo e($wo->id); ?>"><?php echo e($wo->wo_number); ?> - <?php echo e($wo->vehicle?->plate_number); ?></option>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+            </select>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['selectedWoId'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <p class="text-xs text-red-400"><?php echo e($message); ?></p> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+            <div class="flex gap-3">
+                <div class="flex-1">
+                    <label class="text-xs text-slate-400 block mb-1">Qty</label>
+                    <input wire:model="qty" type="number" min="1"
+                        class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white text-center focus:ring-2 focus:ring-amber-400 focus:outline-none">
+                </div>
+                <div class="flex-1 flex flex-col justify-end">
+                    <button type="button" wire:click="addToWorkOrder"
+                        class="w-full py-3 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-600 transition-colors">
+                        &#x2795; Tambah ke WO
+                    </button>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+        <?php else: ?>
+        
+        <div class="bg-red-500/20 border border-red-500/40 rounded-2xl p-6 text-center">
+            <p class="text-4xl mb-3">&#x274C;</p>
+            <p class="text-red-400 font-semibold">Produk tidak ditemukan</p>
+            <p class="text-slate-400 text-sm mt-1">Kode: <span class="font-mono text-amber-400"><?php echo e($scannedCode); ?></span></p>
+        </div>
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+    </div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
+    
+    <div x-data="{ show:false, msg:'', type:'success' }"
+         x-on:notify.window="show=true; msg=$event.detail.message; type=$event.detail.type; setTimeout(()=>show=false,3000)"
+         x-show="show" x-transition
+         :class="type==='success' ? 'bg-green-500' : 'bg-red-500'"
+         class="fixed bottom-24 right-4 left-4 text-white px-5 py-3 rounded-2xl shadow-lg text-sm font-medium z-50 text-center">
+        <span x-text="msg"></span>
+    </div>
+
+</div>
+
+<?php $__env->startPush('scripts'); ?>
+<script>
+function barcodeScanner() {
+    return {
+        error: '',
+        init() {
+            // Gunakan jsQR library jika tersedia (tambahkan via CDN di layout)
+            if (!navigator.mediaDevices) {
+                this.error = 'Kamera tidak didukung di browser ini';
+                return;
+            }
+            const video = document.getElementById('preview');
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.play();
+                    this.scanLoop(video);
+                })
+                .catch(() => { this.error = 'Izin kamera ditolak'; });
+        },
+        scanLoop(video) {
+            if (typeof jsQR === 'undefined') return;
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const scan = () => {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    if (code) {
+                        this.$dispatch('scanned', code.data);
+                        return; // Stop scanning after finding a code
+                    }
+                }
+                requestAnimationFrame(scan);
+            };
+            requestAnimationFrame(scan);
+        }
+    }
+}
+</script>
+<?php $__env->stopPush(); ?>
+<?php /**PATH D:\FREELANCE\NONA\BengkelKu-POS\resources\views/livewire/mobile/scanner.blade.php ENDPATH**/ ?>
