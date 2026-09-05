@@ -14,8 +14,8 @@
         <div class="bg-slate-800 rounded-2xl p-4">
             <div class="flex items-start justify-between gap-3">
                 <div class="flex-1 min-w-0">
-                    <p class="text-white font-semibold">{{ $wo->vehicle?->plate_number }} &mdash; {{ $wo->vehicle?->model_name }}</p>
-                    <p class="text-slate-400 text-xs mt-0.5">{{ $wo->wo_number }} &bull; {{ $wo->customer?->name }}</p>
+                    <p class="text-white font-semibold">{{ $wo->vehicle?->plate_number }} &mdash; {{ trim(($wo->vehicle?->brand ?? '').' '.($wo->vehicle?->type ?? '')) ?: '-' }}</p>
+                    <p class="text-slate-400 text-xs mt-0.5">{{ $wo->wo_number ?? ('WO-'.str($wo->id)->substr(0,8)) }} &bull; {{ $wo->customer?->name }}</p>
                 </div>
                 <span class="px-2 py-1 rounded-full text-xs font-medium flex-shrink-0
                     {{ $wo->status->value === 'In Progress' ? 'bg-blue-500/20 text-blue-400' :
