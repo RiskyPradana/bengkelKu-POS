@@ -359,52 +359,93 @@ User berencana agar mode offline BengkelOS bisa diakses lewat jaringan lokal (Wi
 
 ---
 
-## Status Terbaru (setelah Sesi 12)
+## Sesi 13: Perbaikan Dashboard Analitik, Komisi Mekanik, Mode Mekanik + 2 Profit Mekanik, Margin/Harga Pokok Khusus Owner, Riwayat Harga Jual
+
+### Konteks
+
+User melaporkan 3 halaman error (Dashboard Analitik, Komisi Mekanik, seluruh Mode Mekanik), sekaligus minta 3 fitur baru dari sisi owner:
+1. Mekanik punya 2 jenis profit terakumulasi bulanan: (a) komisi "kendaraan masuk" (tetap seperti sebelumnya), (b) bonus KPI/target pekerjaan bulanan (cair penuh kalau target tercapai).
+2. Margin & harga pokok (harga beli) hanya boleh terlihat/diatur oleh akun role **Owner**; margin bisa diset per item atau per kategori item.
+3. Riwayat perubahan harga jual, dengan kolom keterangan/alasan perubahan.
+
+### Akar masalah 3 bug yang dilaporkan
+
+1. **Dashboard Analitik error** — `app/Domains/Analytics/Services/AnalyticsService.php` melakukan query ke tabel `invoice_items` yang **tidak pernah ada** di database (rincian item transaksi sebenarnya disimpan di `work_order_items`, terhubung ke `invoices` lewat `invoices.work_order_id`). Semua fungsi grafik (omzet per jasa/sparepart, sparepart terlaris, jasa terlaris, komposisi omzet) selalu gagal dengan SQL error. Fungsi `mechanicPerformance()` juga salah join (`mc.mechanic_id` padahal kolom aslinya `mc.user_id`).
+2. **Komisi Mekanik error** — `app/Livewire/Commission/Index.php` memakai nama kolom yang tidak ada di `work_orders` (`mechanic_id`, `grand_total`, `labor_cost`, `completed_at` — saat itu belum ada), status `'done'` yang tidak valid (status asli: `Pending`/`In Progress`/`Completed`/`Paid`), dan role string `'mechanic'` (seharusnya `'mekanik'`).
+3. **Mode Mekanik error semua** — Kolom `work_orders.status` di database berisi nilai lama yang tidak cocok dengan enum `WorkOrderStatus` yang berlaku sekarang, sehingga setiap kali Eloquent mencoba mem-baca baris SPK, terjadi `ValueError` (enum tidak valid) dan seluruh halaman `/mobile`, `/mobile/wo` gagal dimuat. Ditambah bug lama `$wo->vehicle?->model_name` yang memanggil kolom yang tidak ada (kendaraan hanya punya kolom `brand` dan `type`).
+
+### Perbaikan bug (semua sudah di-push ke `main`)
+
+- **Migration baru** `2026_09_06_000001_normalize_and_extend_work_orders.php` — menormalkan nilai `status` lama yang tidak valid di tabel `work_orders` menjadi salah satu dari `Pending/In Progress/Completed/Paid`, sekaligus menambah kolom `wo_number`, `completed_at`, `paid_at` (dipakai penomoran SPK & pencatatan waktu selesai/lunas).
+- `app/Domains/Analytics/Services/AnalyticsService.php` — ditulis ulang: semua query yang tadinya ke `invoice_items` sekarang ke `work_order_items` join `invoices` (lewat `work_order_id`); `mechanicPerformance()` diperbaiki joinnya ke `mc.user_id`; nama kolom nominal invoice dideteksi otomatis (`amountColumn()`) supaya tidak gampang error lagi kalau skema berubah.
+- `app/Livewire/Commission/Index.php` + `resources/views/livewire/commission/index.blade.php` — ditulis ulang total, sekarang memakai `CommissionService` (lihat di bawah), filter per bulan, tabel rekap per mekanik (WO selesai, total jasa, komisi kendaraan, status target KPI, bonus KPI, total komisi), dan drill-down daftar SPK per mekanik.
+- `resources/views/livewire/mobile/home.blade.php` dan `resources/views/livewire/mobile/wo.blade.php` — `$wo->vehicle?->model_name` diganti menjadi gabungan `brand` + `type` kendaraan yang benar-benar ada di database.
+
+### Fitur baru 1 — 2 Profit Bulanan Mekanik
+
+- Tabel `mechanic_commissions` (sudah ada) ditambah kolom `source` (migration `2026_09_06_000002_add_kpi_and_commission_fields.php`), plus kolom baru di tabel `users`: `monthly_target` (target jumlah SPK selesai per bulan) dan `kpi_bonus_amount` (nominal bonus kalau target tercapai).
+- Model baru `app/Domains/Commission/Models/MechanicCommission.php` dan service baru `app/Domains/Commission/Services/CommissionService.php`:
+  - **Profit 1 — Kendaraan Masuk:** setiap kali SPK berpindah status ke **Paid**, `WorkOrderService::markPaid()` otomatis memanggil `CommissionService::recordForWorkOrder()` yang mencatat satu baris komisi (persen dari nilai jasa) di `mechanic_commissions` — perilaku ini sama seperti sebelumnya, tidak berubah.
+  - **Profit 2 — Bonus KPI:** `CommissionService::monthlySummary()` menghitung jumlah SPK selesai mekanik dalam sebulan; kalau jumlahnya sudah mencapai `monthly_target` milik mekanik tersebut, `kpi_bonus_amount` otomatis ditambahkan sebagai profit kedua bulan itu.
+- Halaman **Manajemen User** (`app/Livewire/Settings/UserManagement.php` + view) — ditambah 2 input baru khusus role Mekanik: "Target KPI / Bulan" dan "Bonus KPI (Rp)", tampil di form tambah/ubah user.
+- Halaman **Komisi Mekanik** (lihat di atas) menampilkan kedua profit ini secara terpisah per mekanik, plus total gabungan.
+
+### Fitur baru 2 — Margin & Harga Pokok Khusus Owner + Margin per Kategori
+
+- Migration baru `2026_09_06_000003_add_margin_category_and_price_history.php` — menambah kolom `category` dan `margin_percent` di tabel `products`, plus tabel baru `category_margins` (margin default per kategori) dan `product_price_histories` (riwayat perubahan harga, lihat fitur 3).
+- Model baru `app/Domains/Catalog/Models/CategoryMargin.php`.
+- `app/Livewire/Catalog/Index.php` ditulis ulang — computed property `isOwner()` (cek `role === 'owner'`) menentukan apakah field Harga Beli & Margin ditampilkan/bisa diisi. Untuk akun selain Owner, field-field ini **tidak pernah dikirim ke browser sama sekali** (bukan cuma disembunyikan lewat CSS) supaya data harga pokok benar-benar tidak bocor.
+- `resources/views/livewire/catalog/index.blade.php` — kolom "Harga Beli" & "Margin" di tabel sparepart, serta field-nya di form tambah/ubah, hanya tampil untuk Owner (ada catatan info untuk role lain bahwa data ini dikunci). Ditambah input Kategori (dengan datalist saran) yang tetap terlihat semua role, dan tombol "Margin per Kategori" (khusus Owner) untuk mengatur margin default per kategori (misalnya semua item kategori "Oli" otomatis margin 20% kecuali item itu punya margin sendiri).
+
+### Fitur baru 3 — Riwayat Perubahan Harga Jual + Keterangan
+
+- Tabel baru `product_price_histories` (dari migration yang sama di atas): `product_id`, `old_cost_price`, `new_cost_price`, `old_sell_price`, `new_sell_price`, `note` (keterangan), `changed_by` (siapa yang mengubah).
+- Model baru `app/Domains/Catalog/Models/ProductPriceHistory.php`.
+- `Catalog/Index.php::saveProduct()` — setiap kali harga beli atau harga jual sparepart berubah, sistem **mewajibkan** kolom keterangan diisi (mis. "harga naik dari supplier"), lalu otomatis mencatat satu baris riwayat sebelum menyimpan perubahan harga.
+- Tombol "Riwayat" baru di setiap baris sparepart membuka modal yang menampilkan seluruh riwayat perubahan harga (tanggal, siapa yang mengubah, harga lama → baru, dan keterangannya). Kolom Harga Beli di riwayat ini juga ikut disembunyikan untuk role selain Owner.
+
+### File yang diubah/ditambah sesi ini
+
+- Migration: `2026_09_06_000001_normalize_and_extend_work_orders.php`, `2026_09_06_000002_add_kpi_and_commission_fields.php`, `2026_09_06_000003_add_margin_category_and_price_history.php`
+- Model baru: `app/Domains/Catalog/Models/CategoryMargin.php`, `app/Domains/Catalog/Models/ProductPriceHistory.php`, `app/Domains/Commission/Models/MechanicCommission.php`
+- Service baru: `app/Domains/Commission/Services/CommissionService.php`
+- Diubah: `app/Domains/Catalog/Models/Product.php`, `app/Domains/WorkOrder/Models/WorkOrder.php`, `app/Models/User.php`, `app/Domains/WorkOrder/Services/WorkOrderService.php`, `app/Domains/Analytics/Services/AnalyticsService.php`, `app/Livewire/Commission/Index.php`, `resources/views/livewire/commission/index.blade.php`, `app/Livewire/Settings/UserManagement.php`, `resources/views/livewire/settings/user-management.blade.php`, `app/Livewire/Catalog/Index.php`, `resources/views/livewire/catalog/index.blade.php`, `resources/views/livewire/mobile/home.blade.php`, `resources/views/livewire/mobile/wo.blade.php`
+
+### Catatan penting untuk sesi berikutnya
+
+- **Setelah pull, wajib jalankan `php artisan migrate` lagi** — ada 3 migration baru sesi ini (normalisasi status SPK + kolom KPI/komisi + margin kategori & riwayat harga).
+- Rate komisi "kendaraan masuk" default diambil dari `.env` (`COMMISSION_RATE`, fallback 10%), bisa ditimpa per mekanik lewat field "Rate Komisi Khusus (%)" yang sudah ada sejak sebelumnya di Manajemen User.
+- Kalau mekanik belum diisi "Target KPI / Bulan", bonus KPI otomatis tidak dihitung (dianggap belum diaktifkan) — tidak akan error, hanya kosong "Belum diset" di halaman Komisi Mekanik.
+- Margin per kategori bersifat *default* — kalau sebuah sparepart sudah diisi margin sendiri (field Margin di form produk), margin itu yang dipakai; margin kategori hanya jadi acuan untuk item yang belum diisi margin sendiri (perhitungan margin efektif final ke harga jual disarankan tetap dicek manual sampai ada halaman kalkulator margin otomatis).
+
+---
+
+## Status Terbaru (setelah Sesi 13)
 
 ### Yang Sudah Selesai (tambahan dari sesi-sesi sebelumnya):
-14. ✅ Mobile Mekanik (PWA): scan barcode & kerjakan SPK dari HP (bug status/UUID/kolom sudah diperbaiki di Sesi 10)
-15. ✅ Stok & Inventaris Multi-Cabang (stok awal + penyesuaian manual)
-16. ✅ Komisi Mekanik otomatis dari SPK yang sudah dibayar
-17. ✅ CRM & Pengingat WhatsApp jatuh tempo servis
-18. ✅ Dashboard Analitik Owner (omzet, sparepart terlaris, performa mekanik)
-19. ✅ Manajemen User (CRUD, role, reset password)
-20. ✅ Pembelian & Supplier (PO, penerimaan barang menambah stok, pembayaran ke supplier)
-21. ✅ Manajemen Cabang via web (`/pengaturan/cabang`)
-22. ✅ Role & Hak Akses via web (`/pengaturan/role`), tidak perlu edit file config lagi
-23. ✅ Payment capture UI, Cetak Struk, Scan Barcode & Hold Transaksi di kasir
-24. ✅ Hybrid Offline Sync (Modul 7) untuk PWA Mobile Mekanik
-25. ✅ Kasir full-screen (sidebar auto-hide) + tombol hide/show sidebar di semua halaman
-26. ✅ Sidebar mengingat posisi scroll terakhir (tidak reset ke atas setiap pindah halaman)
-27. ✅ Middleware role di level route (akses URL langsung sekarang ikut diblokir sesuai role, bukan cuma sembunyikan menu)
-28. ✅ Ikon PWA (`public/icons/pwa-icon.svg`) untuk `manifest.json`
-29. ✅ Stok check saat menambah/menaikkan jumlah sparepart di keranjang kasir
-30. ✅ Pengaturan Jaringan Lokal (LAN) untuk akses mode offline via WiFi (`/pengaturan/jaringan`)
-31. ✅ Pengaturan Printer — printer laporan A4 (Epson/Canon dll) & printer struk thermal 58mm/80mm (`/pengaturan/printer`), termasuk cetak struk kasir & tombol "Cetak Laporan" yang sudah mengikuti pengaturan ini
+32. ✅ Dashboard Analitik diperbaiki (query yang salah ke tabel `invoice_items` yang tidak ada, sekarang pakai `work_order_items`)
+33. ✅ Komisi Mekanik ditulis ulang total, sesuai skema database yang berlaku (tidak error lagi)
+34. ✅ Mode Mekanik (`/mobile`, `/mobile/wo`) diperbaiki — status SPK lama dinormalisasi, bug `model_name` diperbaiki
+35. ✅ 2 profit bulanan mekanik: komisi "kendaraan masuk" (tetap) + bonus KPI/target pekerjaan bulanan
+36. ✅ Margin & harga pokok (harga beli) hanya terlihat/bisa diatur oleh role Owner
+37. ✅ Margin bisa diset per item atau per kategori item (`/katalog` → tombol "Margin per Kategori", khusus Owner)
+38. ✅ Riwayat perubahan harga jual & harga beli, dengan kolom keterangan wajib diisi
 
 ### Yang Perlu Dilanjutkan:
 1. 🔲 Redesign tombol "Cari Invoice" di Quick Actions kasir agar benar-benar mencari invoice (saat ini hanya link balik ke halaman Kasir)
+2. 🔲 Halaman kalkulator margin otomatis (hitung harga jual otomatis dari harga beli + margin kategori/item) — saat ini margin & harga jual masih diinput manual terpisah
 
-### File Yang Perlu Diperhatikan:
-- `app/Livewire/Pos/Cashier.php` - Cashier component (stok check + startCollapsed + printerSettings) — Sesi 11 & 12
-- `resources/views/livewire/pos/cashier.blade.php` - Cashier view (struk mengikuti lebar kertas thermal — Sesi 12)
-- `app/Domains/POS/Services/POSService.php` - POS business logic
-- `app/Domains/WorkOrder/Services/WorkOrderService.php` - WorkOrder service
-- `app/Domains/WorkOrder/Services/OfflineSyncService.php` - Modul 7, replay aksi offline
-- `app/Http/Controllers/Api/OfflineSyncController.php` - Modul 7, endpoint `/api/sync/push`
-- `app/Http/Middleware/EnsureRoleHasAccess.php` - Middleware role di level route — Sesi 11
-- `resources/views/errors/403.blade.php` - Halaman Akses Ditolak — Sesi 11
-- `public/icons/pwa-icon.svg` - Ikon PWA — Sesi 11
-- `resources/js/offline-sync.js` - Modul 7, antrian IndexedDB sisi browser
-- `public/sw.js` - Modul 7, Service Worker (cache + Background Sync)
-- `resources/views/components/layouts/app.blade.php` - Layout untuk Livewire (desktop) — sidebar collapse & scroll memory (Sesi 11)
-- `resources/views/layouts/mobile.blade.php` - Layout untuk PWA Mobile Mekanik
-- `app/Domains/MasterData/Services/RoleRegistry.php` - Jembatan config/roles.php ↔ tabel role_settings, termasuk `manageableRoutes()` — Sesi 12
-- `app/Domains/MasterData/Models/AppSetting.php` - Penyimpanan pengaturan generik (key-value) — Sesi 12
-- `app/Livewire/Settings/{UserManagement,BranchManagement,RoleSettings,NetworkSettings,PrinterSettings}.php` - Halaman Pengaturan
-- `app/Livewire/Reports/Index.php` - Laporan, sekarang bisa dicetak A4 lewat `reportPrintSettings` — Sesi 12
-- `app/Livewire/MobileMechanic/{Home,Scanner,WorkOrders}.php` - Mobile Mekanik (bug sudah diperbaiki Sesi 10)
-- `bootstrap/app.php` - alias middleware `role.access` — Sesi 11
-- `routes/web.php` - middleware `role.access` dipasang di route halaman utama & mobile, + route `settings.network`/`settings.printer` — Sesi 11 & 12
+### File Yang Perlu Diperhatikan (tambahan Sesi 13):
+- `app/Domains/Analytics/Services/AnalyticsService.php` - Dashboard Analitik, sumber data KPI/grafik owner — diperbaiki total Sesi 13
+- `app/Domains/Commission/Services/CommissionService.php` - Sumber tunggal perhitungan 2 profit mekanik (komisi kendaraan + bonus KPI) — baru Sesi 13
+- `app/Domains/Commission/Models/MechanicCommission.php` - Model komisi per SPK — baru Sesi 13
+- `app/Livewire/Commission/Index.php` + `resources/views/livewire/commission/index.blade.php` - Halaman Komisi Mekanik — ditulis ulang Sesi 13
+- `app/Domains/Catalog/Models/CategoryMargin.php` - Margin default per kategori item — baru Sesi 13
+- `app/Domains/Catalog/Models/ProductPriceHistory.php` - Riwayat perubahan harga jual/beli — baru Sesi 13
+- `app/Livewire/Catalog/Index.php` + `resources/views/livewire/catalog/index.blade.php` - Katalog, margin/harga pokok khusus Owner + riwayat harga — ditulis ulang Sesi 13
+- `app/Livewire/Settings/UserManagement.php` + view - tambah Target KPI & Bonus KPI mekanik — Sesi 13
+- `resources/views/livewire/mobile/{home,wo}.blade.php` - bug `model_name` diperbaiki — Sesi 13
 
 ### Known Issues:
 - Tombol "Cari Invoice" di kasir belum jadi pencarian invoice sungguhan (masih link balik ke halaman Kasir)
+- Margin per kategori/item masih input manual (belum ada kalkulator otomatis harga jual dari harga beli + margin)
