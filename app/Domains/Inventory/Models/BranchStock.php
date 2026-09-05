@@ -13,7 +13,7 @@ class BranchStock extends Model
     use HasUuid;
 
     protected $fillable = [
-        'branch_id', 'product_id', 'quantity', 'min_stock', 'rack_location',
+        'branch_id', 'product_id', 'quantity', 'min_stock', 'rack_location', 'rack_id',
     ];
 
     protected function casts(): array
@@ -32,6 +32,11 @@ class BranchStock extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function rack(): BelongsTo
+    {
+        return $this->belongsTo(Rack::class);
     }
 
     public function isLowStock(): bool

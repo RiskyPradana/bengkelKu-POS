@@ -13,7 +13,8 @@ class Supplier extends Model
     use HasUuid;
 
     protected $fillable = [
-        'name', 'contact_person', 'phone', 'email', 'address', 'is_active',
+        'name', 'external_code', 'contact_person', 'phone', 'email',
+        'address', 'city', 'province', 'is_active',
     ];
 
     protected function casts(): array
