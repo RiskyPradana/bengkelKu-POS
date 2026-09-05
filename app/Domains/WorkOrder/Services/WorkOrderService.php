@@ -4,6 +4,7 @@ namespace App\Domains\WorkOrder\Services;
 
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Catalog\Models\ServiceItem;
+use App\Domains\Commission\Services\CommissionService;
 use App\Domains\WorkOrder\Enums\WorkOrderStatus;
 use App\Domains\WorkOrder\Models\WorkOrder;
 use App\Domains\WorkOrder\Models\WorkOrderAssignment;
@@ -19,6 +20,7 @@ class WorkOrderService
         return DB::transaction(function () use ($data): WorkOrder {
             $data['status'] = WorkOrderStatus::make($data['status'] ?? WorkOrderStatus::Pending)->value;
             $data['price_snapshot'] = $data['price_snapshot'] ?? [];
+            $data['wo_number'] = $data['wo_number'] ?? $this->generateWoNumber();
 
             return WorkOrder::create($data);
         });
@@ -139,12 +141,29 @@ class WorkOrderService
 
     public function markCompleted(WorkOrder $workOrder): WorkOrder
     {
-        return $this->transitionTo($workOrder, WorkOrderStatus::Completed);
+        $workOrder = $this->transitionTo($workOrder, WorkOrderStatus::Completed);
+
+        $workOrder->forceFill([
+            'completed_at' => $workOrder->completed_at ?? now(),
+        ])->save();
+
+        return $workOrder;
     }
 
     public function markPaid(WorkOrder $workOrder): WorkOrder
     {
-        return $this->transitionTo($workOrder, WorkOrderStatus::Paid);
+        $workOrder = $this->transitionTo($workOrder, WorkOrderStatus::Paid);
+
+        $workOrder->forceFill([
+            'completed_at' => $workOrder->completed_at ?? now(),
+            'paid_at' => $workOrder->paid_at ?? now(),
+        ])->save();
+
+        // Profit stream 1 mekanik: komisi "kendaraan masuk" dicatat otomatis
+        // begitu WO dinyatakan Paid.
+        app(CommissionService::class)->recordForWorkOrder($workOrder->refresh());
+
+        return $workOrder;
     }
 
     public function buildPriceSnapshot(WorkOrder $workOrder): array
@@ -163,6 +182,16 @@ class WorkOrderService
             'total_items' => $items->count(),
             'total_amount' => $items->sum('subtotal'),
         ];
+    }
+
+    private function generateWoNumber(): string
+    {
+        $day = now()->format('Ymd');
+        $prefix = 'WO-' . $day . '-';
+
+        $count = WorkOrder::where('wo_number', 'like', $prefix . '%')->count();
+
+        return $prefix . str_pad((string) ($count + 1), 4, '0', STR_PAD_LEFT);
     }
 
     private function storeLineItem(

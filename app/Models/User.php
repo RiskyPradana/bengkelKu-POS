@@ -29,6 +29,8 @@ class User extends Authenticatable
     'is_active',
     'last_login_at',
     'commission_rate',
+    'monthly_target',
+    'kpi_bonus_amount',
     ];
 
     protected $hidden = [
@@ -44,6 +46,8 @@ class User extends Authenticatable
                'is_active'         => 'boolean',
         'last_login_at'     => 'datetime',
         'commission_rate'   => 'decimal:2',
+        'monthly_target'    => 'integer',
+        'kpi_bonus_amount'  => 'decimal:2',
         ];
     }
 

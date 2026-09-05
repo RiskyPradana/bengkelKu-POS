@@ -20,6 +20,8 @@ class Product extends Model
         'cost_price',
         'sell_price',
         'is_active',
+        'category',
+        'margin_percent',
     ];
 
     protected function casts(): array
@@ -28,6 +30,7 @@ class Product extends Model
             'cost_price' => 'decimal:2',
             'sell_price' => 'decimal:2',
             'is_active' => 'boolean',
+            'margin_percent' => 'decimal:2',
         ];
     }
 

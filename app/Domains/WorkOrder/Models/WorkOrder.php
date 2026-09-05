@@ -29,6 +29,9 @@ class WorkOrder extends Model
         'complaint',
         'assigned_mechanic_id',
         'price_snapshot',
+        'wo_number',
+        'completed_at',
+        'paid_at',
     ];
 
     protected function casts(): array
@@ -37,6 +40,8 @@ class WorkOrder extends Model
             'status' => WorkOrderStatus::class,
             'odometer' => 'integer',
             'price_snapshot' => 'array',
+            'completed_at' => 'datetime',
+            'paid_at' => 'datetime',
         ];
     }
 
