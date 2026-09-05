@@ -9,6 +9,12 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Sumber data tunggal untuk Dashboard Analitik Owner & Laporan.
  * Semua method mengembalikan array siap pakai untuk chart / tabel.
+ *
+ * CATATAN Sesi 13: aplikasi ini TIDAK memiliki tabel `invoice_items`.
+ * Rincian jasa/sparepart per transaksi ada di `work_order_items`, yang
+ * dihubungkan ke `invoices` lewat `invoices.work_order_id`. Semua query
+ * yang sebelumnya join ke `invoice_items` (penyebab error di halaman
+ * Dashboard Analitik) sudah diarahkan ke `work_order_items`.
  */
 class AnalyticsService
 {
@@ -82,15 +88,15 @@ class AnalyticsService
      */
     public function topParts(Carbon $start, Carbon $end, int $limit = 10, ?string $branchId = null): array
     {
-        return DB::table('invoice_items as ii')
-            ->join('invoices as i', 'i.id', '=', 'ii.invoice_id')
-            ->leftJoin('products as p', 'p.id', '=', 'ii.product_id')
-            ->selectRaw("COALESCE(p.name, ii.description) as nama, COALESCE(p.sku, '-') as sku, SUM(ii.quantity) as qty, SUM(ii.subtotal) as total")
+        return DB::table('work_order_items as woi')
+            ->join('invoices as i', 'i.work_order_id', '=', 'woi.work_order_id')
+            ->leftJoin('products as p', 'p.id', '=', 'woi.product_id')
+            ->selectRaw("COALESCE(p.name, woi.name) as nama, COALESCE(p.sku, '-') as sku, SUM(woi.qty) as qty, SUM(woi.subtotal) as total")
             ->where('i.status', '!=', 'void')
-            ->where('ii.type', 'product')
+            ->where('woi.item_type', 'product')
             ->when($branchId, fn ($q) => $q->where('i.branch_id', $branchId))
             ->whereBetween('i.created_at', [$start, $end])
-            ->groupByRaw("COALESCE(p.name, ii.description), COALESCE(p.sku, '-')")
+            ->groupByRaw("COALESCE(p.name, woi.name), COALESCE(p.sku, '-')")
             ->orderByDesc('qty')
             ->limit($limit)
             ->get()
@@ -108,14 +114,14 @@ class AnalyticsService
      */
     public function topServices(Carbon $start, Carbon $end, int $limit = 10, ?string $branchId = null): array
     {
-        return DB::table('invoice_items as ii')
-            ->join('invoices as i', 'i.id', '=', 'ii.invoice_id')
-            ->selectRaw('ii.description as nama, COUNT(*) as jumlah, SUM(ii.subtotal) as total')
+        return DB::table('work_order_items as woi')
+            ->join('invoices as i', 'i.work_order_id', '=', 'woi.work_order_id')
+            ->selectRaw('woi.name as nama, COUNT(*) as jumlah, SUM(woi.subtotal) as total')
             ->where('i.status', '!=', 'void')
-            ->where('ii.type', 'service')
+            ->where('woi.item_type', 'service')
             ->when($branchId, fn ($q) => $q->where('i.branch_id', $branchId))
             ->whereBetween('i.created_at', [$start, $end])
-            ->groupBy('ii.description')
+            ->groupBy('woi.name')
             ->orderByDesc('jumlah')
             ->limit($limit)
             ->get()
@@ -133,7 +139,7 @@ class AnalyticsService
     public function mechanicPerformance(Carbon $start, Carbon $end, ?string $branchId = null): array
     {
         return DB::table('mechanic_commissions as mc')
-            ->leftJoin('users as u', 'u.id', '=', 'mc.mechanic_id')
+            ->leftJoin('users as u', 'u.id', '=', 'mc.user_id')
             ->selectRaw("COALESCE(u.name, 'Tanpa Nama') as nama, COUNT(*) as total_wo, SUM(mc.service_amount) as total_jasa, SUM(mc.commission_amount) as total_komisi")
             ->when($branchId, fn ($q) => $q->where('mc.branch_id', $branchId))
             ->whereBetween('mc.earned_at', [$start, $end])
@@ -155,13 +161,13 @@ class AnalyticsService
      */
     public function revenueComposition(Carbon $start, Carbon $end, ?string $branchId = null): array
     {
-        $rows = DB::table('invoice_items as ii')
-            ->join('invoices as i', 'i.id', '=', 'ii.invoice_id')
-            ->selectRaw('ii.type, SUM(ii.subtotal) as total')
+        $rows = DB::table('work_order_items as woi')
+            ->join('invoices as i', 'i.work_order_id', '=', 'woi.work_order_id')
+            ->selectRaw('woi.item_type as type, SUM(woi.subtotal) as total')
             ->where('i.status', '!=', 'void')
             ->when($branchId, fn ($q) => $q->where('i.branch_id', $branchId))
             ->whereBetween('i.created_at', [$start, $end])
-            ->groupBy('ii.type')
+            ->groupBy('woi.item_type')
             ->pluck('total', 'type');
 
         return [
@@ -266,7 +272,7 @@ class AnalyticsService
             ->all();
     }
 
-    // ─────────────────────────── Helper ───────────────────────────
+    // ───────────────────── Helper ─────────────────────
 
     private function sumInvoices(Carbon $start, Carbon $end, ?string $branchId = null): array
     {
@@ -277,13 +283,13 @@ class AnalyticsService
             ->selectRaw("COALESCE(SUM({$this->amountColumn()}), 0) as total, COUNT(*) as count")
             ->first();
 
-        $split = DB::table('invoice_items as ii')
-            ->join('invoices as i', 'i.id', '=', 'ii.invoice_id')
+        $split = DB::table('work_order_items as woi')
+            ->join('invoices as i', 'i.work_order_id', '=', 'woi.work_order_id')
             ->when($branchId, fn ($q) => $q->where('i.branch_id', $branchId))
             ->where('i.status', '!=', 'void')
             ->whereBetween('i.created_at', [$start, $end])
-            ->selectRaw('ii.type, COALESCE(SUM(ii.subtotal), 0) as total')
-            ->groupBy('ii.type')
+            ->selectRaw('woi.item_type as type, COALESCE(SUM(woi.subtotal), 0) as total')
+            ->groupBy('woi.item_type')
             ->pluck('total', 'type');
 
         return [
@@ -294,9 +300,6 @@ class AnalyticsService
         ];
     }
 
-    /**
-     * Ekspresi jam yang kompatibel MySQL, PostgreSQL, dan SQLite.
-     */
     /**
      * Nama kolom nilai uang di tabel invoices berbeda-beda antar proyek
      * (total / grand_total / total_amount / ...). Dideteksi otomatis supaya
@@ -328,6 +331,9 @@ class AnalyticsService
         return $kolom = 'total';
     }
 
+    /**
+     * Ekspresi jam yang kompatibel MySQL, PostgreSQL, dan SQLite.
+     */
     private function hourExpression(): string
     {
         return match (DB::getDriverName()) {
