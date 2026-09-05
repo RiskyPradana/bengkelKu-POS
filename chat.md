@@ -420,32 +420,91 @@ User melaporkan 3 halaman error (Dashboard Analitik, Komisi Mekanik, seluruh Mod
 
 ---
 
-## Status Terbaru (setelah Sesi 13)
+## Sesi 14: Fix Dashboard Analitik (customer_id), Import iPos 5, Master Data Merek/Rak/Satuan (CRUD), Kartu Stok, Cetak Barcode, Multi Level Harga, Voucher/Diskon Kasir, Fix Mode Mekanik
 
-### Yang Sudah Selesai (tambahan dari sesi-sesi sebelumnya):
-32. ✅ Dashboard Analitik diperbaiki (query yang salah ke tabel `invoice_items` yang tidak ada, sekarang pakai `work_order_items`)
-33. ✅ Komisi Mekanik ditulis ulang total, sesuai skema database yang berlaku (tidak error lagi)
-34. ✅ Mode Mekanik (`/mobile`, `/mobile/wo`) diperbaiki — status SPK lama dinormalisasi, bug `model_name` diperbaiki
-35. ✅ 2 profit bulanan mekanik: komisi "kendaraan masuk" (tetap) + bonus KPI/target pekerjaan bulanan
-36. ✅ Margin & harga pokok (harga beli) hanya terlihat/bisa diatur oleh role Owner
-37. ✅ Margin bisa diset per item atau per kategori item (`/katalog` → tombol "Margin per Kategori", khusus Owner)
-38. ✅ Riwayat perubahan harga jual & harga beli, dengan kolom keterangan wajib diisi
+### Konteks
+
+User melaporkan Dashboard Analitik masih error saat diklik, dan minta sekaligus 7 hal lain:
+1. Menu Import data dari iPos 5 (user mengunggah `SUPPLIER.xlsx` & `ITEM.xlsx`, hasil export iPos 5).
+2. Merek, Rak, dan Satuan harus jadi master data mandiri (dinamis, bisa CRUD), bukan teks bebas.
+3. Kartu Stok — riwayat mutasi stok per item.
+4. Cetak barcode ke printer.
+5. Beberapa model harga per item (mengikuti "Level Harga" iPos 5).
+6. Potongan/diskon manual di kasir (sudah ada) + voucher yang bisa diterapkan di kasir.
+7. Konfirmasi ulang apakah klik Work Order di Mode Mekanik masih bermasalah.
+
+### Perbaikan bug
+
+1. **Dashboard Analitik error (`customer_id`)** — query `topCustomers()` di `AnalyticsService.php` salah join, memanggil `i.customer_id` yang tidak ada di tabel `invoices` (data pelanggan sebenarnya lewat `work_orders.customer_id`, terhubung ke `invoices` lewat `work_order_id`). Sudah diperbaiki join-nya lewat `work_orders`.
+2. **Mode Mekanik — klik Work Order** — ternyata route detail SPK di HP mekanik (`/mobile/wo/{id}`) memang belum pernah dibuat sebelumnya (halaman daftar WO sudah ada, tapi klik salah satu SPK tidak punya tujuan), plus `/mobile/wo` sempat memakai variabel yang tidak terdefinisi. Sudah dibuat komponen `WorkOrderDetail` + route `wo.detail`, jadi sekarang klik SPK di Mode Mekanik membuka halaman detail dan bisa langsung "Mulai Kerjakan"/"Selesai" dari sana.
+
+### Fitur baru 1 — Master Data Mandiri: Merek, Satuan, Rak
+
+- Migration baru menambah tabel `brands`, `units`, `racks` + kolom `brand_id`/`unit_id`/`price_mode` di `products` dan `rack_id` di `branch_stocks`.
+- Model baru `Brand`, `Unit`, `Rack`.
+- Halaman baru **Master Data** (`/pengaturan/master-data`, route `settings.master-data`) — CRUD penuh untuk ketiga master data ini (tambah/ubah/hapus, hapus ditolak kalau masih dipakai produk/stok).
+- Form produk di Katalog sekarang memilih Merek & Satuan dari dropdown master data ini (bukan teks bebas lagi), dengan tautan cepat ke halaman Master Data kalau belum ada datanya.
+
+### Fitur baru 2 — Menu Import Data dari iPos 5
+
+- `app/Support/SimpleXlsxReader.php` — pembaca file `.xlsx` sendiri tanpa perlu menambah dependency baru (PhpSpreadsheet dll).
+- Halaman baru **Import Data** (`/pengaturan/import`, route `settings.import`) — upload file Excel iPos 5:
+  - **Import Supplier** (`SUPPLIER.xlsx`) → membuat/memperbarui data di menu Pembelian & Supplier.
+  - **Import Item** (`ITEM.xlsx`, sheet "Satuan") → membuat/memperbarui Produk, otomatis membuat Merek/Satuan/Rak baru kalau belum ada di master data, mengisi harga jual Level 1 sebagai harga utama dan Level 2–4 sebagai baris di `product_price_levels` (lihat fitur 4), serta stok awal per cabang.
+  - Ringkasan hasil import (jumlah baris berhasil/dilewati/error) ditampilkan setelah proses selesai.
+
+### Fitur baru 3 — Kartu Stok
+
+- Tombol "Kartu Stok" baru di setiap baris sparepart pada halaman Katalog — membuka modal riwayat mutasi stok item tersebut (tanggal, cabang, jenis mutasi, jumlah, stok sebelum/sesudah, catatan), memakai data yang sudah dicatat oleh `StockService::adjust()` sejak sesi-sesi sebelumnya (stok awal, penyesuaian, pembelian, maupun otomatis dari transaksi kasir).
+
+### Fitur baru 4 — Cetak Barcode & Multi Level Harga
+
+- Tombol "Barcode" baru di setiap baris sparepart pada halaman Katalog — membuka modal barcode (dibuat dengan JsBarcode, lewat CDN) beserta tombol "Cetak ke Printer" yang membuka jendela cetak baru khusus barcode (tidak tercampur dengan halaman utama).
+- Tabel baru `product_price_levels` (`product_id`, `level_no` 2–4, `level_name`, `price`) — sparepart bisa diberi toggle "Multi Level Harga" di form produk; kalau aktif, bisa diisi sampai 3 harga tambahan (Level 2, 3, 4) selain harga jual utama (Level 1), mengikuti pola "Level Harga" iPos 5.
+- Di halaman Kasir, item sparepart yang punya multi level harga menampilkan dropdown pilihan level sebelum ditambahkan ke keranjang; harga yang dipakai di keranjang & invoice mengikuti level yang dipilih kasir (harga lain tidak berubah/tidak terpengaruh).
+
+### Fitur baru 5 — Voucher & Potongan Manual di Kasir
+
+- Potongan/diskon manual di kasir (field "Diskon (Rp)") **sudah ada sejak Sesi 6/11** — sesi ini menambahkan sistem **voucher** di atasnya.
+- Tabel baru `vouchers` (`code`, `type` persen/nominal, `value`, `min_purchase`, `max_discount`, `usage_limit`, `used_count`, `valid_from`, `valid_until`, `is_active`) + kolom `voucher_id`/`voucher_code` di tabel `invoices`.
+- Halaman baru **Voucher** (`/pengaturan/voucher`, route `settings.vouchers`) — CRUD penuh kode voucher, termasuk syarat minimal belanja, maksimal potongan, batas jumlah pemakaian, dan tanggal berlaku.
+- Di halaman Kasir, kolom baru "Kode Voucher" (di kartu Rincian Biaya) — kasir mengetik kode lalu tekan "Terapkan"; sistem memvalidasi (aktif, tanggal berlaku, minimal belanja, batas pemakaian) lalu otomatis mengisi kolom Diskon dengan nilai potongan voucher tersebut. Voucher bisa dibatalkan lagi selama invoice belum dibuat. Jumlah pemakaian voucher (`used_count`) bertambah otomatis begitu invoice dari SPK tersebut benar-benar dibuat.
+
+### File yang diubah/ditambah sesi ini
+
+- Migration: `2026_09_06_000004_add_dynamic_master_data_and_pricing.php` (tabel `brands`, `units`, `racks`, `product_price_levels`, `vouchers` + kolom terkait), `2026_09_06_000005_add_voucher_to_invoices_table.php` (kolom `voucher_id`/`voucher_code` di `invoices`)
+- Model baru: `App\Domains\Catalog\Models\Brand`, `App\Domains\Catalog\Models\Unit`, `App\Domains\Catalog\Models\ProductPriceLevel`, `App\Domains\Inventory\Models\Rack`, `App\Domains\POS\Models\Voucher`
+- Livewire baru: `App\Livewire\MasterData\Index` (Master Data), `App\Livewire\Settings\VoucherSettings` (Voucher), `App\Livewire\Settings\ImportData` (Import), `App\Livewire\MobileMechanic\WorkOrderDetail` (detail WO di Mode Mekanik)
+- Support baru: `app/Support/SimpleXlsxReader.php`
+- Diubah: `app/Domains/Analytics/Services/AnalyticsService.php` (fix `topCustomers()`), `app/Domains/Catalog/Models/Product.php`, `app/Domains/Inventory/Models/BranchStock.php`, `app/Domains/Purchasing/Models/Supplier.php`, `app/Domains/POS/Models/Invoice.php`, `app/Domains/POS/Services/POSService.php`, `app/Domains/WorkOrder/Services/WorkOrderService.php` (parameter baru `unitPriceOverride` di `addProductItem()`), `app/Livewire/Catalog/Index.php` + view (Merek/Satuan/level harga/Kartu Stok/Barcode), `app/Livewire/Pos/Cashier.php` + view (voucher & pilihan level harga), `resources/views/livewire/mobile/wo.blade.php`, `routes/web.php`, sidebar (`resources/views/components/sidebar-addons.blade.php`)
+
+### Catatan penting untuk sesi berikutnya
+
+- **Setelah pull, wajib jalankan `php artisan migrate` lagi** — ada 2 migration baru sesi ini (master data & multi level harga/voucher, lalu kolom voucher di invoice).
+- Barcode di modal memakai library JsBarcode dari CDN — kalau server dijalankan sepenuhnya offline/tanpa internet, gambar barcode tidak akan tampil sampai library-nya di-hosting lokal (belum dilakukan sesi ini).
+- Import iPos 5 memetakan Level Harga 1 sebagai harga jual utama produk, Level 2–4 (kalau ada isinya) otomatis diisi ke `product_price_levels` dan `price_mode` produk diset `level`; produk yang di file iPos 5 hanya punya 1 harga tetap memakai `price_mode` `single` seperti sebelumnya (tidak ada dropdown level di kasir).
+- Voucher yang sudah tersimpan di sebuah invoice tidak bisa dibatalkan lagi dari halaman Kasir (invoice sudah terbentuk) — kalau perlu dibatalkan, saat ini harus lewat halaman Voucher (nonaktifkan/hapus vouchernya) atau edit langsung datanya.
+
+---
+
+## Status Terbaru (setelah Sesi 14)
+
+### Yang Sudah Selesai (tambahan dari Sesi 14):
+39. ✅ Dashboard Analitik — bug SQL `customer_id` di `topCustomers()` diperbaiki
+40. ✅ Klik Work Order di Mode Mekanik — dibuatkan halaman detail (`/mobile/wo/{id}`) yang sebelumnya tidak ada
+41. ✅ Menu Import data dari iPos 5 (Supplier & Item, dari file `.xlsx`)
+42. ✅ Merek, Satuan, Rak — jadi master data mandiri, bisa CRUD (`/pengaturan/master-data`)
+43. ✅ Kartu Stok — riwayat mutasi stok per item sparepart
+44. ✅ Cetak barcode per item (modal + cetak ke printer)
+45. ✅ Multi level harga per item (Level 1–4, mengikuti pola iPos 5), bisa dipilih saat menambah ke keranjang kasir
+46. ✅ Voucher di kasir (`/pengaturan/voucher` untuk kelola kode, diterapkan langsung di halaman Kasir) — potongan manual di kasir sendiri sudah ada sejak sesi sebelumnya
 
 ### Yang Perlu Dilanjutkan:
 1. 🔲 Redesign tombol "Cari Invoice" di Quick Actions kasir agar benar-benar mencari invoice (saat ini hanya link balik ke halaman Kasir)
-2. 🔲 Halaman kalkulator margin otomatis (hitung harga jual otomatis dari harga beli + margin kategori/item) — saat ini margin & harga jual masih diinput manual terpisah
-
-### File Yang Perlu Diperhatikan (tambahan Sesi 13):
-- `app/Domains/Analytics/Services/AnalyticsService.php` - Dashboard Analitik, sumber data KPI/grafik owner — diperbaiki total Sesi 13
-- `app/Domains/Commission/Services/CommissionService.php` - Sumber tunggal perhitungan 2 profit mekanik (komisi kendaraan + bonus KPI) — baru Sesi 13
-- `app/Domains/Commission/Models/MechanicCommission.php` - Model komisi per SPK — baru Sesi 13
-- `app/Livewire/Commission/Index.php` + `resources/views/livewire/commission/index.blade.php` - Halaman Komisi Mekanik — ditulis ulang Sesi 13
-- `app/Domains/Catalog/Models/CategoryMargin.php` - Margin default per kategori item — baru Sesi 13
-- `app/Domains/Catalog/Models/ProductPriceHistory.php` - Riwayat perubahan harga jual/beli — baru Sesi 13
-- `app/Livewire/Catalog/Index.php` + `resources/views/livewire/catalog/index.blade.php` - Katalog, margin/harga pokok khusus Owner + riwayat harga — ditulis ulang Sesi 13
-- `app/Livewire/Settings/UserManagement.php` + view - tambah Target KPI & Bonus KPI mekanik — Sesi 13
-- `resources/views/livewire/mobile/{home,wo}.blade.php` - bug `model_name` diperbaiki — Sesi 13
+2. 🔲 Halaman kalkulator margin otomatis (hitung harga jual otomatis dari harga beli + margin kategori/item)
+3. 🔲 Hosting library JsBarcode secara lokal (saat ini dari CDN) supaya cetak barcode tetap berfungsi walau server benar-benar offline dari internet
 
 ### Known Issues:
 - Tombol "Cari Invoice" di kasir belum jadi pencarian invoice sungguhan (masih link balik ke halaman Kasir)
 - Margin per kategori/item masih input manual (belum ada kalkulator otomatis harga jual dari harga beli + margin)
+- Barcode memerlukan koneksi internet untuk memuat library JsBarcode dari CDN
