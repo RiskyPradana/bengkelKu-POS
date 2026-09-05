@@ -1,5 +1,5 @@
 {{--
-    Menu Sidebar Add-On (Modul 3–7 + Fase 3)
+    Menu Sidebar Add-On (Modul 3–7 + Fase 3 + Sesi 14)
 
     Cara pakai: sisipkan di dalam <nav> sidebar pada layouts/app.blade.php:
         <x-sidebar-addons />
@@ -54,11 +54,14 @@
         [
             'label' => 'Pengaturan',
             'items' => [
-                ['route' => 'settings.users',    'icon' => 'users',    'label' => 'Manajemen User'],
-                ['route' => 'settings.branches', 'icon' => 'building', 'label' => 'Manajemen Cabang'],
-                ['route' => 'settings.roles',    'icon' => 'shield',   'label' => 'Role & Hak Akses'],
-                ['route' => 'settings.network',  'icon' => 'wifi',     'label' => 'Jaringan Lokal (LAN)'],
-                ['route' => 'settings.printer',  'icon' => 'printer',  'label' => 'Pengaturan Printer'],
+                ['route' => 'settings.users',       'icon' => 'users',    'label' => 'Manajemen User'],
+                ['route' => 'settings.branches',    'icon' => 'building', 'label' => 'Manajemen Cabang'],
+                ['route' => 'settings.roles',       'icon' => 'shield',   'label' => 'Role & Hak Akses'],
+                ['route' => 'settings.master-data', 'icon' => 'tag',      'label' => 'Master Data (Merek/Satuan/Rak)'],
+                ['route' => 'settings.vouchers',    'icon' => 'ticket',   'label' => 'Voucher & Diskon'],
+                ['route' => 'settings.import',      'icon' => 'upload',   'label' => 'Import dari iPos 5'],
+                ['route' => 'settings.network',     'icon' => 'wifi',     'label' => 'Jaringan Lokal (LAN)'],
+                ['route' => 'settings.printer',     'icon' => 'printer',  'label' => 'Pengaturan Printer'],
             ],
         ],
     ];
@@ -76,6 +79,9 @@
         'shield'   => 'M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z',
         'wifi'     => 'M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.98-5.98 15.686-5.98 21.666 0M12 18.75h.007v.008H12v-.008z',
         'printer'  => 'M9 17H7a2 2 0 01-2-2v-4a2 2 0 012-2h10a2 2 0 012 2v4a2 2 0 01-2 2h-2m-6 0v3a1 1 0 001 1h4a1 1 0 001-1v-3m-6 0h6M8 9V5a1 1 0 011-1h6a1 1 0 011 1v4',
+        'tag'      => 'M7 7h.01M7 3h5.586a1 1 0 01.707.293l6.414 6.414a1 1 0 010 1.414l-7.586 7.586a1 1 0 01-1.414 0L3.293 12.293A1 1 0 013 11.586V6a3 3 0 013-3z',
+        'ticket'   => 'M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 010 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 010-4V7a2 2 0 00-2-2H5z',
+        'upload'   => 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M12 12v9m0-9l-3.5 3.5M12 12l3.5 3.5',
     ];
 
     // Filter: route harus terdaftar DAN role harus diizinkan
