@@ -4,12 +4,14 @@
     Cara pakai: sisipkan di dalam <nav> sidebar pada layouts/app.blade.php:
         <x-sidebar-addons />
 
-    Hak akses diatur di config/roles.php — bukan di file ini.
+    Hak akses diatur di /pengaturan/role (tabel role_settings), dengan
+    fallback ke config/roles.php kalau migration belum dijalankan.
 --}}
 
 @php
     use Illuminate\Support\Facades\Route as RouteFacade;
     use Illuminate\Support\Facades\Schema;
+    use App\Domains\MasterData\Services\RoleRegistry;
 
     $user = auth()->user();
 
@@ -21,10 +23,10 @@
         $hasRoleColumn = false;
     }
 
-    $userRole  = $hasRoleColumn ? strtolower((string) ($user->role ?? '')) : '';
+    $userRole   = $hasRoleColumn ? strtolower((string) ($user->role ?? '')) : '';
     $permissive = ! $hasRoleColumn && config('roles.permissive_when_no_role_column', true);
 
-    $access = config('roles.access', []);
+    $access = RoleRegistry::access();
 
     $navGroups = [
         [
@@ -52,20 +54,24 @@
         [
             'label' => 'Pengaturan',
             'items' => [
-                ['route' => 'settings.users', 'icon' => 'users', 'label' => 'Manajemen User'],
+                ['route' => 'settings.users',    'icon' => 'users',    'label' => 'Manajemen User'],
+                ['route' => 'settings.branches', 'icon' => 'building', 'label' => 'Manajemen Cabang'],
+                ['route' => 'settings.roles',    'icon' => 'shield',   'label' => 'Role & Hak Akses'],
             ],
         ],
     ];
 
     $icons = [
-        'cube'   => 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
-        'cart'   => 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',
-        'chat'   => 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
-        'cash'   => 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-        'device' => 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
-        'qrcode' => 'M12 4v1m6 11h2m-6 0h-1v4m-6-4h1v4m5-16v1m-5 4H4m5 0H8m0 0V4m0 5h1m6 0h1m-1 0V4m5 5h-1m-4 0h-1m5 5h-1m-4 0h-1m0 0v5m5-5v5m-5 0h5',
-        'chart'  => 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-        'users'  => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+        'cube'     => 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+        'cart'     => 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',
+        'chat'     => 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
+        'cash'     => 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+        'device'   => 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
+        'qrcode'   => 'M12 4v1m6 11h2m-6 0h-1v4m-6-4h1v4m5-16v1m-5 4H4m5 0H8m0 0V4m0 5h1m6 0h1m-1 0V4m5 5h-1m-4 0h-1m5 5h-1m-4 0h-1m0 0v5m5-5v5m-5 0h5',
+        'chart'    => 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+        'users'    => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+        'building' => 'M3 21h18M6 21V7l6-4 6 4v14M9 9h1m4 0h1m-6 4h1m4 0h1m-6 4h1m4 0h1',
+        'shield'   => 'M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z',
     ];
 
     // Filter: route harus terdaftar DAN role harus diizinkan
@@ -104,8 +110,7 @@
 @if (count($navGroups) === 0 && config('app.debug'))
     <div class="mx-3 mt-4 p-2.5 text-xs rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-800 dark:text-red-300">
         <b>Tidak ada menu yang bisa ditampilkan.</b><br>
-        Role kamu: <code class="px-1 bg-red-100 dark:bg-red-500/20 rounded">{{ $userRole ?: 'kosong' }}</code><br>
-        Jalankan <code class="px-1 bg-red-100 dark:bg-red-500/20 rounded">php artisan bengkel:doctor</code> untuk diagnosa.
+        Role kamu: <code class="px-1 bg-red-100 dark:bg-red-500/20 rounded">{{ $userRole ?: 'kosong' }}</code>
     </div>
 @endif
 
