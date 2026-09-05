@@ -4,6 +4,7 @@ namespace App\Livewire\Pos;
 
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Catalog\Models\ServiceItem;
+use App\Domains\Inventory\Models\BranchStock;
 use App\Domains\MasterData\Models\Branch;
 use App\Domains\POS\Enums\InvoiceStatus;
 use App\Domains\POS\Enums\PaymentMethod;
@@ -54,8 +55,10 @@ class Cashier extends Component
 
     public function render(): View
     {
+        // Sesi 11: Kasir tampil full-screen secara default (sidebar disembunyikan),
+        // tapi kasir tetap bisa menampilkannya lagi lewat tombol di topbar.
         return view('livewire.pos.cashier')
-            ->layout('layouts.app', ['title' => 'Kasir — BengkelOS']);
+            ->layout('layouts.app', ['title' => 'Kasir — BengkelOS', 'startCollapsed' => true]);
     }
 
     // ──────────────────────────────────────────────────────────
@@ -115,9 +118,18 @@ class Cashier extends Component
                 $this->notify('danger', 'Sparepart tidak ditemukan', 'Item katalog sudah tidak tersedia.');
                 return;
             }
+
             $existing = $workOrder->items()->where('product_id', $product->id)->first();
+            $nextQty  = $existing instanceof WorkOrderItem ? $existing->qty + 1 : 1;
+
+            // Sesi 11: cek sisa stok cabang sebelum menambah sparepart ke keranjang.
+            if (! $this->hasEnoughStock($product->id, $nextQty, $shortage)) {
+                $this->notify('warning', 'Stok tidak cukup', "Sisa stok {$product->name} di cabang ini: {$shortage} unit.");
+                return;
+            }
+
             if ($existing instanceof WorkOrderItem) {
-                app(WorkOrderService::class)->updateItemQuantity($existing, $existing->qty + 1);
+                app(WorkOrderService::class)->updateItemQuantity($existing, $nextQty);
             } else {
                 app(WorkOrderService::class)->addProductItem($workOrder, $product, 1);
             }
@@ -150,6 +162,15 @@ class Cashier extends Component
             return;
         }
         $nextQuantity = max(1, $lineItem->qty + $delta);
+
+        // Sesi 11: cek stok kalau jumlah sparepart di keranjang dinaikkan.
+        if ($delta > 0 && $lineItem->isProduct() && $lineItem->product_id) {
+            if (! $this->hasEnoughStock($lineItem->product_id, $nextQuantity, $shortage)) {
+                $this->notify('warning', 'Stok tidak cukup', "Sisa stok di cabang ini: {$shortage} unit.");
+                return;
+            }
+        }
+
         app(WorkOrderService::class)->updateItemQuantity($lineItem, $nextQuantity);
         $this->selectWorkOrder($workOrder->id);
     }
@@ -517,6 +538,37 @@ class Cashier extends Component
         return $type === 'product'
             ? $workOrder->items->contains(fn (WorkOrderItem $item) => $item->product_id === $itemId)
             : $workOrder->items->contains(fn (WorkOrderItem $item) => $item->service_item_id === $itemId);
+    }
+
+    /**
+     * Sesi 11: Cek apakah stok sparepart di cabang aktif cukup untuk jumlah
+     * yang diminta. Kalau tidak ada data cabang/stok sama sekali (misalnya
+     * belum pernah dicatat lewat modul Inventory), anggap tidak dibatasi
+     * supaya tidak memblokir transaksi karena data yang belum lengkap.
+     */
+    private function hasEnoughStock(string $productId, int $requiredQty, ?int &$availableOut = null): bool
+    {
+        $branchId = $this->activeBranch?->id;
+        if (! $branchId) {
+            $availableOut = 0;
+            return true;
+        }
+
+        $stock = BranchStock::query()
+            ->where('product_id', $productId)
+            ->where('branch_id', $branchId)
+            ->first();
+
+        if (! $stock) {
+            // Belum ada record stok untuk kombinasi produk+cabang ini —
+            // biarkan lewat, supaya sparepart yang belum diinput stoknya
+            // lewat modul Inventory tidak mendadak tidak bisa dijual.
+            $availableOut = 0;
+            return true;
+        }
+
+        $availableOut = (int) $stock->quantity;
+        return $availableOut >= $requiredQty;
     }
 
     // Fix #2: Izinkan InProgress dan Completed

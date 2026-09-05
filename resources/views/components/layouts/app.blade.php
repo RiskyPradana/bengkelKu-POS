@@ -1,6 +1,7 @@
 @props([
-    'title'    => null,
-    'subtitle' => null,
+    'title'          => null,
+    'subtitle'       => null,
+    'startCollapsed' => false,
 ])
 
 <!doctype html>
@@ -142,6 +143,7 @@
 
 <div x-data="{
         sidebarOpen: false,
+        sidebarCollapsed: {{ ($startCollapsed ?? false) ? 'true' : 'false' }},
         gelap: document.documentElement.classList.contains('dark'),
         toggleTema() {
             this.gelap = ! this.gelap;
@@ -162,8 +164,17 @@
          style="display: none;"></div>
 
     {{-- ============================ SIDEBAR ============================ --}}
-    <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-           class="fixed inset-y-0 left-0 z-40 flex flex-col w-64 transition-transform duration-200 border-r bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 lg:translate-x-0">
+    {{--
+        sidebarOpen  -> kontrol drawer overlay di layar kecil (HP/tablet).
+        sidebarCollapsed -> kontrol sembunyikan sidebar secara permanen di desktop
+                            (dipakai misalnya oleh halaman Kasir supaya tampil
+                            full-screen), bisa ditampilkan lagi lewat tombol di topbar.
+    --}}
+    <aside :class="[
+                sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+                sidebarCollapsed ? 'lg:-translate-x-full' : 'lg:translate-x-0',
+            ]"
+           class="fixed inset-y-0 left-0 z-40 flex flex-col w-64 transition-transform duration-200 border-r bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
 
         {{-- Logo --}}
         <div class="flex items-center gap-3 px-4 h-[72px] shrink-0 border-b border-slate-200 dark:border-slate-800">
@@ -190,7 +201,24 @@
         </div>
 
         {{-- Menu --}}
-        <nav class="flex-1 px-3 pb-4 overflow-y-auto">
+        {{--
+            Sidebar mengingat posisi scroll terakhir lewat sessionStorage, jadi
+            begitu pindah halaman (full page reload, bukan SPA), sidebar tidak
+            balik ke posisi paling atas lagi — tetap di posisi menu yang tadi diklik.
+        --}}
+        <nav
+            x-init="
+                $nextTick(() => {
+                    try {
+                        var saved = sessionStorage.getItem('bengkelos-sidebar-scroll');
+                        if (saved !== null) { $el.scrollTop = parseInt(saved, 10) || 0; }
+                    } catch (e) {}
+                });
+            "
+            @scroll.debounce.150ms="
+                try { sessionStorage.setItem('bengkelos-sidebar-scroll', String($el.scrollTop)); } catch (e) {}
+            "
+            class="flex-1 px-3 pb-4 overflow-y-auto">
 
             @foreach ($coreGroups as $group)
                 <div class="mt-5">
@@ -252,15 +280,25 @@
     </aside>
 
     {{-- ============================ KONTEN ============================ --}}
-    <div class="lg:pl-64">
+    <div :class="sidebarCollapsed ? 'lg:pl-0' : 'lg:pl-64'" class="transition-[padding] duration-200">
 
         {{-- Topbar --}}
         <header class="sticky top-0 z-20 flex items-center gap-3 px-4 border-b h-[72px] bg-white/90 dark:bg-slate-900/90 backdrop-blur border-slate-200 dark:border-slate-800 lg:px-6">
 
+            {{-- Hamburger: khusus HP/tablet, buka drawer sidebar --}}
             <button @click="sidebarOpen = true"
                     class="p-2 -ml-2 rounded-lg lg:hidden text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+
+            {{-- Tombol sembunyikan/tampilkan sidebar: khusus desktop, berlaku di semua halaman --}}
+            <button @click="sidebarCollapsed = ! sidebarCollapsed"
+                    :title="sidebarCollapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'"
+                    class="hidden lg:inline-flex p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M3 12h10M3 17h18" />
                 </svg>
             </button>
 
