@@ -37,6 +37,7 @@
             'label' => 'Operasional',
             'items' => [
                 ['route' => 'inventory',     'icon' => 'cube', 'label' => 'Stok Multi-Cabang'],
+                ['route' => 'purchasing',    'icon' => 'cart', 'label' => 'Pembelian & Supplier'],
                 ['route' => 'crm.reminders', 'icon' => 'chat', 'label' => 'CRM & Pengingat WA'],
                 ['route' => 'commission',    'icon' => 'cash', 'label' => 'Komisi Mekanik'],
             ],
@@ -58,6 +59,7 @@
 
     $icons = [
         'cube'   => 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+        'cart'   => 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',
         'chat'   => 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
         'cash'   => 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
         'device' => 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
@@ -141,6 +143,24 @@
                     @endphp
                     @if ($lowStock > 0)
                         <span class="ml-auto px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">{{ $lowStock }}</span>
+                    @endif
+                @endif
+
+                {{-- Badge hutang supplier belum lunas --}}
+                @if ($item['route'] === 'purchasing')
+                    @php
+                        $unpaidPo = 0;
+                        try {
+                            $unpaidPo = \App\Domains\Purchasing\Models\PurchaseOrder::query()
+                                ->whereIn('status', ['ordered', 'partially_received', 'received'])
+                                ->where('payment_status', '!=', 'lunas')
+                                ->count();
+                        } catch (\Throwable $e) {
+                            $unpaidPo = 0;
+                        }
+                    @endphp
+                    @if ($unpaidPo > 0)
+                        <span class="ml-auto px-2 py-0.5 text-xs font-bold text-white bg-amber-500 rounded-full">{{ $unpaidPo }}</span>
                     @endif
                 @endif
 
