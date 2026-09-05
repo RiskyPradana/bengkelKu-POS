@@ -13,6 +13,7 @@ use App\Livewire\MobileMechanic\Home as MobileHome;
 use App\Livewire\MobileMechanic\Scanner;
 use App\Livewire\MobileMechanic\WorkOrders as MobileWorkOrders;
 use App\Livewire\Pos\Cashier;
+use App\Livewire\Purchasing\Index as PurchasingIndex;
 use App\Livewire\Reports\Index as ReportsIndex;
 use App\Livewire\WorkOrder\Index as WorkOrderIndex;
 use Illuminate\Support\Facades\Auth;
@@ -68,6 +69,9 @@ Route::middleware('auth')->group(function (): void {
 
     // Modul 5: Komisi Mekanik
     Route::get('/commission', CommissionIndex::class)->name('commission');
+
+    // Pembelian & Supplier
+    Route::get('/purchasing', PurchasingIndex::class)->name('purchasing');
 
     // Laporan
     Route::get('/reports', ReportsIndex::class)->name('reports');
