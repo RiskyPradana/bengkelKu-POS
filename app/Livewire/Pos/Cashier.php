@@ -10,6 +10,7 @@ use App\Domains\MasterData\Models\Branch;
 use App\Domains\POS\Enums\InvoiceStatus;
 use App\Domains\POS\Enums\PaymentMethod;
 use App\Domains\POS\Models\Invoice;
+use App\Domains\POS\Models\Voucher;
 use App\Domains\POS\Services\POSService;
 use App\Domains\WorkOrder\Enums\WorkOrderStatus;
 use App\Domains\WorkOrder\Models\WorkOrder;
@@ -31,6 +32,12 @@ class Cashier extends Component
     // Fix #13: Tambah label (Rp) di view agar tidak ambigu
     public string $discount = '0';
     public string $tax      = '0';
+
+    // Sesi 14: input kode voucher & voucher yang sedang diterapkan
+    public string  $voucherCode        = '';
+    public ?string $appliedVoucherId   = null;
+    public ?string $appliedVoucherCode = null;
+    public ?string $appliedVoucherInfo = null;
 
     // Fix #1: Payment input properties (sudah ada, tinggal wiring UI)
     public string $paymentMethod    = '';
@@ -99,7 +106,11 @@ class Cashier extends Component
         $this->hydrateFormState($workOrder);
     }
 
-    public function addCatalogItem(string $type, string $itemId): void
+    /**
+     * Sesi 14: $levelNo (2-4) opsional dipakai untuk menambah sparepart
+     * dengan model harga tertentu (mengikuti Level Harga iPos 5).
+     */
+    public function addCatalogItem(string $type, string $itemId, ?int $levelNo = null): void
     {
         $workOrder = $this->selectedWorkOrder;
 
@@ -114,7 +125,7 @@ class Cashier extends Component
         }
 
         if ($type === 'product') {
-            $product = Product::query()->find($itemId);
+            $product = Product::query()->with('priceLevels')->find($itemId);
             if (! $product instanceof Product) {
                 $this->notify('danger', 'Sparepart tidak ditemukan', 'Item katalog sudah tidak tersedia.');
                 return;
@@ -129,10 +140,19 @@ class Cashier extends Component
                 return;
             }
 
+            // Sesi 14: tentukan harga jual berdasarkan level yang dipilih kasir.
+            $unitPriceOverride = null;
+            if ($levelNo !== null && $product->price_mode === 'level') {
+                $level = $product->priceLevels->firstWhere('level_no', $levelNo);
+                if ($level) {
+                    $unitPriceOverride = (float) $level->price;
+                }
+            }
+
             if ($existing instanceof WorkOrderItem) {
                 app(WorkOrderService::class)->updateItemQuantity($existing, $nextQty);
             } else {
-                app(WorkOrderService::class)->addProductItem($workOrder, $product, 1);
+                app(WorkOrderService::class)->addProductItem($workOrder, $product, 1, $unitPriceOverride);
             }
         } elseif ($type === 'service') {
             $serviceItem = ServiceItem::query()->find($itemId);
@@ -191,6 +211,73 @@ class Cashier extends Component
         $this->notify('success', 'Item dihapus', 'Keranjang sudah diperbarui.');
     }
 
+    /**
+     * Sesi 14: terapkan kode voucher ke SPK yang sedang aktif. Diskon hasil
+     * voucher langsung mengisi field "Diskon (Rp)" yang sudah ada, supaya
+     * tidak perlu mengubah alur createInvoice().
+     */
+    public function applyVoucher(): void
+    {
+        $workOrder = $this->selectedWorkOrder;
+        if (! $workOrder instanceof WorkOrder) {
+            $this->notify('warning', 'Pilih SPK dulu', 'Voucher hanya bisa dipakai pada SPK aktif.');
+            return;
+        }
+        if ($this->selectedInvoice instanceof Invoice) {
+            $this->notify('warning', 'Invoice sudah dibuat', 'Voucher hanya bisa diterapkan sebelum invoice dibuat.');
+            return;
+        }
+
+        $code = strtoupper(trim($this->voucherCode));
+        if ($code === '') {
+            $this->notify('warning', 'Kode voucher kosong', 'Masukkan kode voucher terlebih dahulu.');
+            return;
+        }
+
+        $voucher = Voucher::query()->where('code', $code)->first();
+        if (! $voucher instanceof Voucher) {
+            $this->notify('danger', 'Voucher tidak ditemukan', "Kode \"{$code}\" tidak terdaftar.");
+            return;
+        }
+
+        $summary  = $this->summarizeWorkOrder($workOrder);
+        $subtotal = (float) $summary['subtotal'];
+
+        if (! $voucher->isCurrentlyValid($subtotal, $reason)) {
+            $this->notify('warning', 'Voucher tidak bisa dipakai', $reason ?? 'Voucher tidak valid.');
+            return;
+        }
+
+        $discountAmount = $voucher->calculateDiscount($subtotal);
+
+        $this->appliedVoucherId   = $voucher->id;
+        $this->appliedVoucherCode = $voucher->code;
+        $this->appliedVoucherInfo = $voucher->type === 'percent'
+            ? number_format((float) $voucher->value, 0) . '% off'
+            : 'Potongan Rp ' . number_format((float) $voucher->value, 0, ',', '.');
+        $this->discount = (string) round($discountAmount, 2);
+        $this->voucherCode = '';
+
+        $this->notify('success', 'Voucher diterapkan', "{$voucher->code} — potongan Rp " . number_format($discountAmount, 0, ',', '.'));
+    }
+
+    /**
+     * Sesi 14: batalkan voucher yang sedang diterapkan (hanya sebelum invoice dibuat).
+     */
+    public function removeVoucher(): void
+    {
+        if ($this->selectedInvoice instanceof Invoice) {
+            $this->notify('warning', 'Invoice sudah dibuat', 'Voucher pada invoice yang sudah terbit tidak bisa dibatalkan dari sini.');
+            return;
+        }
+
+        $this->appliedVoucherId   = null;
+        $this->appliedVoucherCode = null;
+        $this->appliedVoucherInfo = null;
+        $this->discount = '0';
+        $this->notify('info', 'Voucher dibatalkan', 'Diskon dikembalikan ke Rp 0.');
+    }
+
     public function createInvoice(): void
     {
         $workOrder = $this->selectedWorkOrder;
@@ -208,8 +295,10 @@ class Cashier extends Component
             return;
         }
         app(POSService::class)->createInvoiceFromWorkOrder($workOrder, [
-            'discount' => $this->normalizeAmount($this->discount),
-            'tax'      => $this->normalizeAmount($this->tax),
+            'discount'     => $this->normalizeAmount($this->discount),
+            'tax'          => $this->normalizeAmount($this->tax),
+            'voucher_id'   => $this->appliedVoucherId,
+            'voucher_code' => $this->appliedVoucherCode,
         ]);
         $this->selectWorkOrder($workOrder->id);
         $this->notify('success', 'Invoice berhasil dibuat', 'Siap lanjut ke pembayaran.');
@@ -265,6 +354,7 @@ class Cashier extends Component
         $this->tax                 = '0';
         $this->paymentAmount       = '0';
         $this->paymentReference    = '';
+        $this->resetVoucherState();
         $this->notify('info', 'Transaksi di-hold', 'Pilih SPK lain untuk melanjutkan.');
     }
 
@@ -376,7 +466,7 @@ class Cashier extends Component
         $items  = collect();
 
         if (in_array($this->category, ['all', 'product'], true)) {
-            $productQuery = Product::query()->where('is_active', true);
+            $productQuery = Product::query()->where('is_active', true)->with('priceLevels');
             if ($search !== '') {
                 $productQuery->where(
                     fn ($b) => $b
@@ -395,6 +485,19 @@ class Cashier extends Component
                     'meta'       => $p->sku,
                     'tone'       => 'emerald',
                     'in_cart'    => $this->hasItemInCart('product', $p->id),
+                    // Sesi 14: model harga (Level 2-4), kosong kalau produk pakai harga tunggal.
+                    'price_mode' => $p->price_mode,
+                    'price_levels' => $p->price_mode === 'level'
+                        ? $p->priceLevels
+                            ->sortBy('level_no')
+                            ->map(fn ($lvl) => [
+                                'level_no'   => (int) $lvl->level_no,
+                                'level_name' => $lvl->level_name ?: ('Level ' . $lvl->level_no),
+                                'price'      => (float) $lvl->price,
+                            ])
+                            ->values()
+                            ->all()
+                        : [],
                 ])
             );
         }
@@ -418,6 +521,8 @@ class Cashier extends Component
                     'meta'       => $s->code,
                     'tone'       => 'sky',
                     'in_cart'    => $this->hasItemInCart('service', $s->id),
+                    'price_mode' => 'single',
+                    'price_levels' => [],
                 ])
             );
         }
@@ -541,6 +646,7 @@ class Cashier extends Component
             $this->discount      = '0';
             $this->tax           = '0';
             $this->paymentAmount = '0';
+            $this->resetVoucherState();
             return;
         }
         $summary = $this->summarizeWorkOrder($workOrder);
@@ -550,6 +656,25 @@ class Cashier extends Component
             $summary['outstanding'] > 0 ? $summary['outstanding'] : $summary['grand_total'],
             2
         );
+
+        // Sesi 14: tampilkan lagi voucher yang sudah tersimpan di invoice (kalau ada),
+        // atau bersihkan input voucher saat pindah ke SPK lain yang belum pakai voucher.
+        $invoice = $workOrder->invoice;
+        if ($invoice instanceof Invoice && $invoice->voucher_code) {
+            $this->appliedVoucherId   = $invoice->voucher_id;
+            $this->appliedVoucherCode = $invoice->voucher_code;
+            $this->appliedVoucherInfo = null;
+        } else {
+            $this->resetVoucherState();
+        }
+    }
+
+    private function resetVoucherState(): void
+    {
+        $this->voucherCode        = '';
+        $this->appliedVoucherId   = null;
+        $this->appliedVoucherCode = null;
+        $this->appliedVoucherInfo = null;
     }
 
     private function hasItemInCart(string $type, string $itemId): bool
