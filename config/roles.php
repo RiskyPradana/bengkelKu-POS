@@ -59,6 +59,7 @@ return [
     'access' => [
         'analytics'      => ['owner', 'admin'],
         'inventory'      => ['owner', 'admin', 'gudang'],
+        'purchasing'     => ['owner', 'admin', 'gudang'],
         'crm.reminders'  => ['owner', 'admin', 'kasir'],
         'commission'     => ['owner', 'admin'],
         'settings.users' => ['owner'],
