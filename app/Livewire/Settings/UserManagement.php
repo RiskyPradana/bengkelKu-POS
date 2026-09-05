@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Settings;
 
+use App\Domains\MasterData\Services\RoleRegistry;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -41,12 +42,12 @@ class UserManagement extends Component
 
     public function mount(): void
     {
-        $this->role = (string) config('roles.default', 'kasir');
+        $this->role = RoleRegistry::default();
     }
 
     protected function rules(): array
     {
-        $roleKeys = array_keys((array) config('roles.list', []));
+        $roleKeys = array_keys(RoleRegistry::list());
 
         return [
             'name'  => ['required', 'string', 'min:3', 'max:100'],
@@ -257,7 +258,7 @@ class UserManagement extends Component
         $this->editingId = null;
         $this->name      = '';
         $this->email     = '';
-        $this->role      = (string) config('roles.default', 'kasir');
+        $this->role      = RoleRegistry::default();
         $this->phone     = '';
         $this->branchId  = null;
         $this->isActive  = true;
@@ -373,7 +374,7 @@ class UserManagement extends Component
             'users'         => $users,
             'summary'       => $summary,
             'branches'      => $branches,
-            'roleList'      => (array) config('roles.list', []),
+            'roleList'      => RoleRegistry::list(),
             'hasRoleColumn' => $hasRoleColumn,
         ])->layout('layouts.app', ['title' => 'Manajemen User']);
     }

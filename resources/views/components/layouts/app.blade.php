@@ -65,6 +65,7 @@
 
 @php
     use Illuminate\Support\Facades\Route as RouteFacade;
+    use App\Domains\MasterData\Services\RoleRegistry;
 
     /**
      * Menu inti, dikelompokkan seperti sidebar asli.
@@ -134,7 +135,8 @@
 
     $roleLabel = '';
     if ($currentUser && ! empty($currentUser->role)) {
-        $roleLabel = config('roles.list.' . $currentUser->role . '.label', $currentUser->role);
+        $roleMeta  = RoleRegistry::list()[$currentUser->role] ?? null;
+        $roleLabel = $roleMeta['label'] ?? $currentUser->role;
     }
 @endphp
 
