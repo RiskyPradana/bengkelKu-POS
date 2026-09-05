@@ -43,8 +43,11 @@ Route::post('/logout', function () {
 })->middleware('auth')->name('logout');
 
 // ── Authenticated Pages (Desktop) ──────────────────────────────
+// Sesi 11: middleware 'role.access' ditambahkan supaya hak akses role
+// (diatur di /pengaturan/role) juga ditegakkan di level route, bukan cuma
+// menyembunyikan menu di sidebar.
 
-Route::middleware('auth')->group(function (): void {
+Route::middleware(['auth', 'role.access'])->group(function (): void {
 
     // Ringkasan
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
@@ -83,8 +86,9 @@ Route::middleware('auth')->group(function (): void {
 
 // ── Mobile Mekanik (PWA) ─────────────────────────────────────
 // Modul 3: Mobile App untuk Mekanik
+// Sesi 11: middleware 'role.access' juga dipasang di sini.
 
-Route::middleware('auth')->prefix('mobile')->name('mobile.')->group(function (): void {
+Route::middleware(['auth', 'role.access'])->prefix('mobile')->name('mobile.')->group(function (): void {
     Route::get('/',        MobileHome::class)->name('home');
     Route::get('/scanner', Scanner::class)->name('scanner');
     Route::get('/wo',      MobileWorkOrders::class)->name('wo');

@@ -277,7 +277,45 @@ Saat menggarap Modul 7 untuk PWA Mobile Mekanik, ditemukan beberapa **bug lama y
 
 ---
 
-## Status Terbaru (setelah Sesi 10)
+## Sesi 11: Kasir Full-Screen, Sidebar Collapse & Scroll Memory, Middleware Role, Ikon PWA, Stok Check Keranjang
+
+### Konteks
+
+Melanjutkan 4 sisa pekerjaan dari Sesi 10, sekaligus permintaan baru dari user:
+- Halaman Kasir tampil full-screen (sidebar tersembunyi secara default saat masuk kasir).
+- Ada tombol untuk sembunyikan/tampilkan sidebar, dan tombolnya bisa dipakai di semua halaman (tidak cuma Kasir).
+- Posisi scroll sidebar tidak reset ke atas setiap kali pindah halaman (klik menu) — sidebar harus mengingat posisi scroll terakhirnya.
+
+### Yang dibangun
+
+1. **Sidebar bisa disembunyikan/ditampilkan di semua halaman** (`resources/views/components/layouts/app.blade.php`):
+   - Tombol baru di topbar (ikon garis tiga, khusus tampilan desktop, di sebelah hamburger mobile) untuk sembunyikan/tampilkan sidebar kapan saja, di halaman mana saja.
+   - Prop baru `startCollapsed` pada layout — kalau `true`, sidebar otomatis tersembunyi saat halaman pertama dibuka, tapi user tetap bisa menampilkannya lagi lewat tombol topbar (tombolnya selalu ada, tidak ikut tersembunyi).
+   - `app/Livewire/Pos/Cashier.php` sekarang mengirim `startCollapsed: true` ke layout, jadi begitu masuk Kasir langsung tampil full-screen tanpa sidebar.
+2. **Sidebar mengingat posisi scroll terakhir** — memakai `sessionStorage` (bertahan selama tab browser terbuka). Setiap kali menu diklik dan halaman pindah (ini bukan SPA, jadi selalu full page reload), sidebar otomatis di-scroll balik ke posisi terakhir alih-alih mulai dari atas lagi.
+3. **Middleware Role di level route** — menutup celah keamanan lama (hak akses sebelumnya cuma menyembunyikan menu di sidebar, user yang tahu URL langsung tetap bisa buka halamannya):
+   - `app/Http/Middleware/EnsureRoleHasAccess.php` (baru) — mengecek role user terhadap `RoleRegistry::access()` (tabel `role_settings`, fallback ke `config/roles.php`) untuk setiap halaman yang dibuka. Kalau tidak diizinkan → halaman "Akses Ditolak" (403).
+   - Didaftarkan sebagai alias `role.access` di `bootstrap/app.php`, dipasang di route halaman utama & mobile mekanik di `routes/web.php`.
+   - Halaman baru `resources/views/errors/403.blade.php` — pesan "Akses Ditolak" bergaya BengkelOS, bukan halaman error polos bawaan Laravel.
+   - Route yang belum punya aturan akses spesifik (Dashboard, Kasir, SPK, Pelanggan, Katalog, dll.) tetap terbuka untuk semua user login, sama seperti perilaku menu sidebar sebelumnya — tidak ada menu yang mendadak terkunci untuk siapa pun.
+4. **Ikon PWA** — `public/icons/pwa-icon.svg` (baru, format SVG jadi tidak perlu file gambar biner terpisah) dipasang di `public/manifest.json`, menggantikan referensi file PNG yang sebelumnya belum ada. Prompt "Install App" di HP mekanik sekarang tampil dengan ikon yang benar.
+5. **Stok check saat menambah sparepart ke keranjang kasir** (`app/Livewire/Pos/Cashier.php`):
+   - `addCatalogItem()` sekarang mengecek sisa stok sparepart di cabang aktif sebelum menambah ke SPK — kalau stok tidak cukup, muncul notifikasi peringatan dan item tidak ditambahkan.
+   - `changeLineQuantity()` (tombol +/- di keranjang) juga dicek — menambah jumlah sparepart di keranjang tidak bisa melebihi sisa stok cabang.
+   - Jasa/layanan (bukan sparepart) tidak dicek stok karena memang tidak punya stok fisik. Kalau belum ada data stok sama sekali untuk kombinasi produk+cabang tersebut (belum pernah diinput lewat modul Inventory), sparepart tetap boleh ditambahkan supaya data yang belum lengkap tidak memblokir transaksi.
+
+### Insiden kecil & perbaikannya
+
+- Saat push pertama sesi ini, `bootstrap/app.php` sempat ter-upload tidak lengkap (terpotong) karena kesalahan saat menyusun isi file, sehingga sempat merusak konfigurasi aplikasi selama beberapa saat. Langsung terdeteksi dan diperbaiki di push berikutnya dengan isi file lengkap + tambahan alias `role.access`. Tidak ada perubahan lain yang terdampak.
+
+### Catatan untuk sesi berikutnya
+
+- Tombol "Cari Invoice" di Quick Actions kasir saat ini masih mengarah ke halaman Kasir itu sendiri (bukan pencarian invoice sungguhan) — berfungsi (tidak error) tapi kurang berguna, perlu didesain ulang kalau mau dibuat pencarian invoice yang sesungguhnya.
+- Setelah pull: wajib `php artisan route:clear && php artisan config:clear` karena ada middleware baru & perubahan route.
+
+---
+
+## Status Terbaru (setelah Sesi 11)
 
 ### Yang Sudah Selesai (tambahan dari sesi-sesi sebelumnya):
 14. ✅ Mobile Mekanik (PWA): scan barcode & kerjakan SPK dari HP (bug status/UUID/kolom sudah diperbaiki di Sesi 10)
@@ -291,30 +329,34 @@ Saat menggarap Modul 7 untuk PWA Mobile Mekanik, ditemukan beberapa **bug lama y
 22. ✅ Role & Hak Akses via web (`/pengaturan/role`), tidak perlu edit file config lagi
 23. ✅ Payment capture UI, Cetak Struk, Scan Barcode & Hold Transaksi di kasir
 24. ✅ Hybrid Offline Sync (Modul 7) untuk PWA Mobile Mekanik
+25. ✅ Kasir full-screen (sidebar auto-hide) + tombol hide/show sidebar di semua halaman
+26. ✅ Sidebar mengingat posisi scroll terakhir (tidak reset ke atas setiap pindah halaman)
+27. ✅ Middleware role di level route (akses URL langsung sekarang ikut diblokir sesuai role, bukan cuma sembunyikan menu)
+28. ✅ Ikon PWA (`public/icons/pwa-icon.svg`) untuk `manifest.json`
+29. ✅ Stok check saat menambah/menaikkan jumlah sparepart di keranjang kasir
 
 ### Yang Perlu Dilanjutkan:
-1. 🔲 Aktifkan tombol quick action kasir lain (Tambah Customer, Cari Invoice, dll) — belum dikonfirmasi status sebenarnya, perlu dicek ulang
-2. 🔲 Middleware pengecekan role di level route (saat ini hak akses hanya menyembunyikan menu di sidebar, belum memblokir akses langsung lewat URL)
-3. 🔲 Tambahkan file ikon PWA asli (`/icons/pwa-192.png`, `/icons/pwa-512.png`) untuk `public/manifest.json`
-4. 🔲 Tidak ada stok check saat menambah product ke keranjang kasir
+1. 🔲 Redesign tombol "Cari Invoice" di Quick Actions kasir agar benar-benar mencari invoice (saat ini hanya link balik ke halaman Kasir)
 
 ### File Yang Perlu Diperhatikan:
-- `app/Livewire/Pos/Cashier.php` - Cashier component
+- `app/Livewire/Pos/Cashier.php` - Cashier component (stok check + startCollapsed) — Sesi 11
 - `resources/views/livewire/pos/cashier.blade.php` - Cashier view
 - `app/Domains/POS/Services/POSService.php` - POS business logic
 - `app/Domains/WorkOrder/Services/WorkOrderService.php` - WorkOrder service
 - `app/Domains/WorkOrder/Services/OfflineSyncService.php` - Modul 7, replay aksi offline
 - `app/Http/Controllers/Api/OfflineSyncController.php` - Modul 7, endpoint `/api/sync/push`
+- `app/Http/Middleware/EnsureRoleHasAccess.php` - Middleware role di level route — Sesi 11
+- `resources/views/errors/403.blade.php` - Halaman Akses Ditolak — Sesi 11
+- `public/icons/pwa-icon.svg` - Ikon PWA — Sesi 11
 - `resources/js/offline-sync.js` - Modul 7, antrian IndexedDB sisi browser
 - `public/sw.js` - Modul 7, Service Worker (cache + Background Sync)
-- `resources/views/components/layouts/app.blade.php` - Layout untuk Livewire (desktop)
+- `resources/views/components/layouts/app.blade.php` - Layout untuk Livewire (desktop) — sidebar collapse & scroll memory (Sesi 11)
 - `resources/views/layouts/mobile.blade.php` - Layout untuk PWA Mobile Mekanik
 - `app/Domains/MasterData/Services/RoleRegistry.php` - Jembatan config/roles.php ↔ tabel role_settings
 - `app/Livewire/Settings/{UserManagement,BranchManagement,RoleSettings}.php` - Halaman Pengaturan
 - `app/Livewire/MobileMechanic/{Home,Scanner,WorkOrders}.php` - Mobile Mekanik (bug sudah diperbaiki Sesi 10)
+- `bootstrap/app.php` - alias middleware `role.access` — Sesi 11
+- `routes/web.php` - middleware `role.access` dipasang di route halaman utama & mobile — Sesi 11
 
 ### Known Issues:
-- Tombol Quick Action kasir selain payment/cetak struk/scan/hold (Tambah Customer, Cari Invoice) belum dikonfirmasi ter-wiring
-- Tidak ada stok check saat menambah product ke keranjang kasir
-- Middleware role di level route belum ada (baru sebatas sembunyikan menu)
-- Ikon PWA (`/icons/pwa-192.png`, `/icons/pwa-512.png`) belum ada file aslinya
+- Tombol "Cari Invoice" di kasir belum jadi pencarian invoice sungguhan (masih link balik ke halaman Kasir)
