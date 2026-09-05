@@ -57,6 +57,8 @@
                 ['route' => 'settings.users',    'icon' => 'users',    'label' => 'Manajemen User'],
                 ['route' => 'settings.branches', 'icon' => 'building', 'label' => 'Manajemen Cabang'],
                 ['route' => 'settings.roles',    'icon' => 'shield',   'label' => 'Role & Hak Akses'],
+                ['route' => 'settings.network',  'icon' => 'wifi',     'label' => 'Jaringan Lokal (LAN)'],
+                ['route' => 'settings.printer',  'icon' => 'printer',  'label' => 'Pengaturan Printer'],
             ],
         ],
     ];
@@ -72,6 +74,8 @@
         'users'    => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
         'building' => 'M3 21h18M6 21V7l6-4 6 4v14M9 9h1m4 0h1m-6 4h1m4 0h1m-6 4h1m4 0h1',
         'shield'   => 'M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z',
+        'wifi'     => 'M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.98-5.98 15.686-5.98 21.666 0M12 18.75h.007v.008H12v-.008z',
+        'printer'  => 'M9 17H7a2 2 0 01-2-2v-4a2 2 0 012-2h10a2 2 0 012 2v4a2 2 0 01-2 2h-2m-6 0v3a1 1 0 001 1h4a1 1 0 001-1v-3m-6 0h6M8 9V5a1 1 0 011-1h6a1 1 0 011 1v4',
     ];
 
     // Filter: route harus terdaftar DAN role harus diizinkan

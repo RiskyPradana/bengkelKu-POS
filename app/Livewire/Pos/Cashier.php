@@ -5,6 +5,7 @@ namespace App\Livewire\Pos;
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Catalog\Models\ServiceItem;
 use App\Domains\Inventory\Models\BranchStock;
+use App\Domains\MasterData\Models\AppSetting;
 use App\Domains\MasterData\Models\Branch;
 use App\Domains\POS\Enums\InvoiceStatus;
 use App\Domains\POS\Enums\PaymentMethod;
@@ -61,9 +62,9 @@ class Cashier extends Component
             ->layout('layouts.app', ['title' => 'Kasir — BengkelOS', 'startCollapsed' => true]);
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────
     // Actions
-    // ──────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────
 
     public function setCategory(string $category): void
     {
@@ -283,9 +284,9 @@ class Cashier extends Component
         $this->notice = [];
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────
     // Computed Properties
-    // ──────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────
 
     public function getActiveBranchProperty(): ?Branch
     {
@@ -485,9 +486,31 @@ class Cashier extends Component
         ], PaymentMethod::cases());
     }
 
-    // ──────────────────────────────────────────────────────────
+    // Sesi 12: Pengaturan printer struk thermal (lebar kertas & ukuran font),
+    // dipakai saat mencetak struk supaya sesuai printer thermal 58mm/80mm.
+    public function getPrinterSettingsProperty(): array
+    {
+        $saved = AppSetting::getMany([
+            'printer.receipt_paper_width',
+            'printer.receipt_font_size',
+        ], [
+            'printer.receipt_paper_width' => '58',
+            'printer.receipt_font_size'   => 12,
+        ]);
+
+        $width = (string) $saved['printer.receipt_paper_width'];
+
+        return [
+            'paper_width_mm' => $width,
+            // Perkiraan lebar cetak dalam px (96dpi) untuk div struk di browser.
+            'paper_width_px' => $width === '80' ? 302 : 219,
+            'font_size'      => (int) $saved['printer.receipt_font_size'],
+        ];
+    }
+
+    // ──────────────────────────────────────────────
     // Private helpers
-    // ──────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────
 
     private function summarizeWorkOrder(WorkOrder $workOrder): array
     {
