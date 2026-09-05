@@ -236,10 +236,51 @@ Setelah modul Pembelian & Supplier (Purchasing) selesai dibangun dan migration-n
 
 ---
 
-## Status Terbaru (setelah Sesi 9)
+## Sesi 10: Modul 7 - Hybrid Offline Sync + Perbaikan Bug Mobile Mekanik
+
+### Konteks
+
+User minta lanjutkan sekaligus 4 hal ("oke lanjutkan semua"): Payment capture UI kasir, Tombol cetak struk, Scan barcode & hold transaksi, dan Hybrid Offline Sync.
+
+### Temuan penting
+
+Setelah mengecek kode terbaru, **3 dari 4 item ternyata sudah selesai** (dikerjakan di sesi/interaksi sebelumnya yang belum tercatat di file ini):
+- ✅ Payment capture UI kasir (metode, nominal, referensi pembayaran)
+- ✅ Tombol Cetak Struk
+- ✅ Scan Barcode & Hold Transaksi di kasir
+
+Semua di `app/Livewire/Pos/Cashier.php` & `resources/views/livewire/pos/cashier.blade.php`.
+
+Yang **benar-benar belum ada**: **Modul 7 - Hybrid Offline Sync**. Sudah ada rintisan (`public/sw.js`, `public/manifest.json`, `routes/pwa.php`, `routes/sync.php`) tapi masih kosong/tidak terhubung ke apa pun.
+
+Saat menggarap Modul 7 untuk PWA Mobile Mekanik, ditemukan beberapa **bug lama yang membuat modul Mobile Mekanik (`/mobile`, `/mobile/scanner`, `/mobile/wo`) sebenarnya rusak sejak awal dibuat**, sekarang sudah diperbaiki:
+1. `Home.php`, `Scanner.php`, `WorkOrders.php` membandingkan status SPK dengan string kecil `'pending'`, `'in_progress'`, `'done'` — padahal enum asli `WorkOrderStatus` memakai `'Pending'`, `'In Progress'`, `'Completed'`, `'Paid'`. Akibatnya daftar SPK di HP mekanik selalu kosong/salah, dan menyimpan status baru bisa membuat SPK tersebut error/crash saat dibuka lagi di modul lain.
+2. `resources/views/livewire/mobile/wo.blade.php` memanggil `startWork({{ $wo->id }})` / `finishWork({{ $wo->id }})` **tanpa tanda kutip** — karena ID SPK berupa UUID (bukan angka), ini membuat tombol "Mulai Kerjakan"/"Selesai" selalu error saat ditekan. Sudah diberi tanda kutip.
+3. `WorkOrders.php` mendeklarasikan `startWork(int $id)` / `finishWork(int $id)` padahal ID SPK adalah UUID (teks) — sudah diperbaiki jadi `string $id`, dan sekarang memakai `WorkOrderService::markInProgress()/markCompleted()` (konsisten dengan modul lain, otomatis mengikuti aturan transisi status).
+4. `Scanner.php` method `addToWorkOrder()` menyimpan item SPK dengan nama kolom yang salah (`quantity`, `name_snapshot`, `cost_price_snapshot`) yang **tidak ada** di tabel `work_order_items` (kolom sebenarnya: `qty`, `name`, `snapshot`) — akibatnya tombol "Tambah ke WO" di scanner mekanik selalu gagal disimpan. Sudah diperbaiki.
+
+### Yang dibangun (Modul 7 - Hybrid Offline Sync)
+
+- **Alur kerja:** saat mekanik menekan "Mulai Kerjakan"/"Selesai" (Work Order) atau "Tambah ke WO" (Scanner) sambil offline, aksinya disimpan dulu di IndexedDB browser lewat `resources/js/offline-sync.js`, lalu otomatis dikirim ulang ke server via endpoint baru `/api/sync/push` begitu koneksi kembali — lewat Background Sync API (`public/sw.js`, v2) atau fallback manual saat event `online` terdeteksi (untuk browser yang belum dukung Background Sync, misalnya Safari/iOS).
+- **Endpoint baru:** `app/Http/Controllers/Api/OfflineSyncController.php` + `app/Domains/WorkOrder/Services/OfflineSyncService.php` — menjalankan ulang aksi yang tertunda persis seperti kalau dikerjakan online (memakai `WorkOrderService` yang sama, jadi tetap menghormati aturan transisi status).
+- **`routes/sync.php`** diisi (`POST /api/sync/push`, `GET /api/sync/status`). Sengaja dipindah ke middleware sesi (`web` + `auth`), **bukan** `auth:sanctum` seperti rencana awal — karena paket Laravel Sanctum belum terpasang di project ini, dan endpoint ini memang hanya dipanggil dari sesi mekanik yang sudah login di browser yang sama, jadi autentikasi sesi sudah cukup tanpa perlu tambah dependency baru.
+- **`bootstrap/app.php`** disesuaikan: grup route `sync.php` pindah dari middleware `api` ke `web`, dan endpoint `api/sync/push` dikecualikan dari validasi CSRF (dipanggil dari Service Worker di background, tidak selalu punya token CSRF terbaru; keamanan tetap dijaga lewat sesi login).
+- **`routes/pwa.php`** diisi rute halaman fallback `/mobile/offline` (`resources/views/mobile/offline.blade.php`).
+- **`public/sw.js`** dirombak (v2): cache halaman `/mobile`, `/mobile/scanner`, `/mobile/wo` untuk dibuka saat offline, fallback ke halaman `/mobile/offline` kalau cache juga kosong, dan antrian offline yang lebih aman (item yang ditolak server dengan error 4xx dibuang agar tidak nyangkut selamanya, item yang gagal karena masih offline/error server tetap disimpan untuk dicoba lagi).
+- **Indikator status koneksi**: pita kecil di atas layar mobile (`resources/views/layouts/mobile.blade.php`) yang menunjukkan "Sedang offline" atau "Menyinkronkan N aksi tertunda...".
+
+### Catatan & batasan untuk sesi berikutnya
+
+- Belum ada file ikon PWA asli (`/icons/pwa-192.png`, `/icons/pwa-512.png`) yang dirujuk `public/manifest.json` — perlu ditambahkan supaya prompt "Install App" tampil rapi di HP mekanik.
+- Offline sync baru mencakup 3 aksi mekanik: mulai SPK, selesai SPK, tambah sparepart ke SPK dari scanner. Aksi kasir/pembayaran **sengaja tidak dibuat offline** karena menyangkut uang & butuh koneksi real-time untuk validasi stok/duplikasi transaksi.
+- Setelah pull: tidak perlu `composer install` (tidak ada package baru), tapi **wajib** `npm run build` (atau `npm run dev` saat development) karena ada file JS baru (`resources/js/offline-sync.js`) yang perlu di-bundle ulang oleh Vite, dan **wajib** `php artisan route:clear && php artisan config:clear` karena `bootstrap/app.php` dan `routes/sync.php`/`routes/pwa.php` berubah.
+
+---
+
+## Status Terbaru (setelah Sesi 10)
 
 ### Yang Sudah Selesai (tambahan dari sesi-sesi sebelumnya):
-14. ✅ Mobile Mekanik (PWA): scan barcode & kerjakan SPK dari HP
+14. ✅ Mobile Mekanik (PWA): scan barcode & kerjakan SPK dari HP (bug status/UUID/kolom sudah diperbaiki di Sesi 10)
 15. ✅ Stok & Inventaris Multi-Cabang (stok awal + penyesuaian manual)
 16. ✅ Komisi Mekanik otomatis dari SPK yang sudah dibayar
 17. ✅ CRM & Pengingat WhatsApp jatuh tempo servis
@@ -248,28 +289,32 @@ Setelah modul Pembelian & Supplier (Purchasing) selesai dibangun dan migration-n
 20. ✅ Pembelian & Supplier (PO, penerimaan barang menambah stok, pembayaran ke supplier)
 21. ✅ Manajemen Cabang via web (`/pengaturan/cabang`)
 22. ✅ Role & Hak Akses via web (`/pengaturan/role`), tidak perlu edit file config lagi
+23. ✅ Payment capture UI, Cetak Struk, Scan Barcode & Hold Transaksi di kasir
+24. ✅ Hybrid Offline Sync (Modul 7) untuk PWA Mobile Mekanik
 
 ### Yang Perlu Dilanjutkan:
-1. 🔲 Jalankan `php artisan migrate` untuk tabel `role_settings`, lalu uji seluruh menu baru
-2. 🔲 Payment capture UI di kasir (metode/nominal/referensi pembayaran) — properti sudah ada tapi input UI belum lengkap
-3. 🔲 Aktifkan tombol "Cetak Struk" (receipt printing)
-4. 🔲 Aktifkan tombol quick action kasir (Tambah Customer, Cari Invoice, dll)
-5. 🔲 Aktifkan tombol "Scan Barcode" dan "Hold Transaksi" di kasir
-6. 🔲 Hybrid Offline Sync (modul 7, belum digarap)
-7. 🔲 Middleware pengecekan role di level route (saat ini hak akses hanya menyembunyikan menu di sidebar, belum memblokir akses langsung lewat URL)
+1. 🔲 Aktifkan tombol quick action kasir lain (Tambah Customer, Cari Invoice, dll) — belum dikonfirmasi status sebenarnya, perlu dicek ulang
+2. 🔲 Middleware pengecekan role di level route (saat ini hak akses hanya menyembunyikan menu di sidebar, belum memblokir akses langsung lewat URL)
+3. 🔲 Tambahkan file ikon PWA asli (`/icons/pwa-192.png`, `/icons/pwa-512.png`) untuk `public/manifest.json`
+4. 🔲 Tidak ada stok check saat menambah product ke keranjang kasir
 
 ### File Yang Perlu Diperhatikan:
 - `app/Livewire/Pos/Cashier.php` - Cashier component
 - `resources/views/livewire/pos/cashier.blade.php` - Cashier view
 - `app/Domains/POS/Services/POSService.php` - POS business logic
 - `app/Domains/WorkOrder/Services/WorkOrderService.php` - WorkOrder service
-- `resources/views/components/layouts/app.blade.php` - Layout untuk Livewire
+- `app/Domains/WorkOrder/Services/OfflineSyncService.php` - Modul 7, replay aksi offline
+- `app/Http/Controllers/Api/OfflineSyncController.php` - Modul 7, endpoint `/api/sync/push`
+- `resources/js/offline-sync.js` - Modul 7, antrian IndexedDB sisi browser
+- `public/sw.js` - Modul 7, Service Worker (cache + Background Sync)
+- `resources/views/components/layouts/app.blade.php` - Layout untuk Livewire (desktop)
+- `resources/views/layouts/mobile.blade.php` - Layout untuk PWA Mobile Mekanik
 - `app/Domains/MasterData/Services/RoleRegistry.php` - Jembatan config/roles.php ↔ tabel role_settings
 - `app/Livewire/Settings/{UserManagement,BranchManagement,RoleSettings}.php` - Halaman Pengaturan
+- `app/Livewire/MobileMechanic/{Home,Scanner,WorkOrders}.php` - Mobile Mekanik (bug sudah diperbaiki Sesi 10)
 
 ### Known Issues:
-- `paymentMethod`, `paymentAmount`, `paymentReference` belum ada input UI
-- Tombol Quick Action (Tambah Customer, Pilih SPK, Cari Invoice, Cetak Struk) belum ter-wiring
-- Tombol "Scan Barcode" dan "Hold Transaksi" belum ter-wiring
-- Tidak ada stok check saat menambah product ke keranjang
+- Tombol Quick Action kasir selain payment/cetak struk/scan/hold (Tambah Customer, Cari Invoice) belum dikonfirmasi ter-wiring
+- Tidak ada stok check saat menambah product ke keranjang kasir
 - Middleware role di level route belum ada (baru sebatas sembunyikan menu)
+- Ikon PWA (`/icons/pwa-192.png`, `/icons/pwa-512.png`) belum ada file aslinya

@@ -17,7 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function (): void {
             Route::middleware('web')->group(base_path('routes/filament.php'));
             Route::middleware('web')->group(base_path('routes/pwa.php'));
-            Route::middleware('api')->group(base_path('routes/sync.php'));
+            // Modul 7: pindah dari middleware 'api' ke 'web' supaya endpoint sync
+            // bisa memakai sesi login mekanik (Sanctum belum terpasang di project ini).
+            Route::middleware('web')->group(base_path('routes/sync.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -25,6 +27,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+        ]);
+
+        // Modul 7: Hybrid Offline Sync — endpoint ini dipanggil oleh Service
+        // Worker (Background Sync) di background, yang tidak selalu membawa
+        // token CSRF terbaru. Keamanan tetap dijaga lewat middleware `auth`
+        // (harus login dengan sesi yang sama) pada routes/sync.php.
+        $middleware->validateCsrfTokens(except: [
+            'api/sync/push',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -1,5 +1,6 @@
 import './bootstrap';
 import '../css/app.css';
+import './offline-sync';
 
 // Catatan: JANGAN import/atau jalankan Alpine.js secara manual di sini.
 // @livewireScripts di layout sudah membawa & menjalankan Alpine bawaan Livewire

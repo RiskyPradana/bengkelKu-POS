@@ -18,9 +18,9 @@
                     <p class="text-slate-400 text-xs mt-0.5">{{ $wo->wo_number }} &bull; {{ $wo->customer?->name }}</p>
                 </div>
                 <span class="px-2 py-1 rounded-full text-xs font-medium flex-shrink-0
-                    {{ $wo->status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                       ($wo->status === 'done' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400') }}">
-                    {{ ucfirst(str_replace('_', ' ', $wo->status)) }}
+                    {{ $wo->status->value === 'In Progress' ? 'bg-blue-500/20 text-blue-400' :
+                       ($wo->status->value === 'Completed' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400') }}">
+                    {{ $wo->status->label() }}
                 </span>
             </div>
 
@@ -28,14 +28,16 @@
             <p class="text-slate-400 text-xs mt-2 line-clamp-2">{{ $wo->complaint }}</p>
             @endif
 
-            <div class="flex items-center gap-2 mt-3">
-                @if($wo->status === 'pending')
-                <button type="button" wire:click="startWork({{ $wo->id }})"
+            <div class="flex items-center gap-2 mt-3" x-data>
+                @if($wo->status->value === 'Pending')
+                <button type="button"
+                    @click="navigator.onLine ? $wire.startWork('{{ $wo->id }}') : window.BengkelOffline.queue('wo.start', { id: '{{ $wo->id }}' }).then(() => $dispatch('notify', { type: 'success', message: 'Tersimpan offline, akan disinkronkan otomatis.' }))"
                     class="flex-1 py-2 bg-blue-500 text-white rounded-xl text-xs font-medium hover:bg-blue-600 transition-colors">
                     &#x25B6; Mulai Kerjakan
                 </button>
-                @elseif($wo->status === 'in_progress')
-                <button type="button" wire:click="finishWork({{ $wo->id }})"
+                @elseif($wo->status->value === 'In Progress')
+                <button type="button"
+                    @click="navigator.onLine ? $wire.finishWork('{{ $wo->id }}') : window.BengkelOffline.queue('wo.finish', { id: '{{ $wo->id }}' }).then(() => $dispatch('notify', { type: 'success', message: 'Tersimpan offline, akan disinkronkan otomatis.' }))"
                     class="flex-1 py-2 bg-green-500 text-white rounded-xl text-xs font-medium hover:bg-green-600 transition-colors">
                     &#x2705; Selesai
                 </button>

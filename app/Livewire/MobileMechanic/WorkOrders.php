@@ -2,7 +2,9 @@
 
 namespace App\Livewire\MobileMechanic;
 
+use App\Domains\WorkOrder\Enums\WorkOrderStatus;
 use App\Domains\WorkOrder\Models\WorkOrder;
+use App\Domains\WorkOrder\Services\WorkOrderService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
@@ -19,7 +21,11 @@ class WorkOrders extends Component
     public function workOrders(): LengthAwarePaginator
     {
         return WorkOrder::with('vehicle', 'customer')
-            ->whereIn('status', ['pending', 'in_progress', 'done'])
+            ->whereIn('status', [
+                WorkOrderStatus::Pending->value,
+                WorkOrderStatus::InProgress->value,
+                WorkOrderStatus::Completed->value,
+            ])
             ->when($this->search, fn($q) => $q
                 ->whereHas('vehicle', fn($v) => $v->where('plate_number', 'like', "%{$this->search}%"))
                 ->orWhere('wo_number', 'like', "%{$this->search}%")
@@ -27,16 +33,21 @@ class WorkOrders extends Component
             ->latest()->paginate(10);
     }
 
-    public function startWork(int $id): void
+    /**
+     * ID SPK berupa UUID (teks), bukan integer — jangan diubah balik ke `int`.
+     */
+    public function startWork(string $id): void
     {
-        WorkOrder::findOrFail($id)->update(['status' => 'in_progress']);
+        $workOrder = WorkOrder::findOrFail($id);
+        app(WorkOrderService::class)->markInProgress($workOrder);
         $this->dispatch('notify', type: 'success', message: 'WO dimulai!');
         unset($this->workOrders);
     }
 
-    public function finishWork(int $id): void
+    public function finishWork(string $id): void
     {
-        WorkOrder::findOrFail($id)->update(['status' => 'done']);
+        $workOrder = WorkOrder::findOrFail($id);
+        app(WorkOrderService::class)->markCompleted($workOrder);
         $this->dispatch('notify', type: 'success', message: 'WO selesai!');
         unset($this->workOrders);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\MobileMechanic;
 
+use App\Domains\WorkOrder\Enums\WorkOrderStatus;
 use App\Domains\WorkOrder\Models\WorkOrder;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -14,21 +15,23 @@ class Home extends Component
     public function activeWoCount(): int
     {
         return WorkOrder::whereDate('created_at', today())
-            ->whereIn('status', ['pending', 'in_progress'])->count();
+            ->whereIn('status', [WorkOrderStatus::Pending->value, WorkOrderStatus::InProgress->value])
+            ->count();
     }
 
     #[Computed]
     public function completedWoCount(): int
     {
         return WorkOrder::whereDate('updated_at', today())
-            ->where('status', 'done')->count();
+            ->where('status', WorkOrderStatus::Completed->value)
+            ->count();
     }
 
     #[Computed]
     public function myWorkOrders(): Collection
     {
         return WorkOrder::with('vehicle', 'customer')
-            ->whereIn('status', ['pending', 'in_progress'])
+            ->whereIn('status', [WorkOrderStatus::Pending->value, WorkOrderStatus::InProgress->value])
             ->latest()->limit(5)->get();
     }
 

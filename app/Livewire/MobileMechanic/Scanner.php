@@ -4,6 +4,7 @@ namespace App\Livewire\MobileMechanic;
 
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Inventory\Models\BranchStock;
+use App\Domains\WorkOrder\Enums\WorkOrderStatus;
 use App\Domains\WorkOrder\Models\WorkOrder;
 use App\Domains\WorkOrder\Models\WorkOrderItem;
 use Illuminate\Contracts\View\View;
@@ -31,7 +32,7 @@ class Scanner extends Component
     public function activeWorkOrders(): Collection
     {
         return WorkOrder::with('customer', 'vehicle')
-            ->whereIn('status', ['pending', 'in_progress'])
+            ->whereIn('status', [WorkOrderStatus::Pending->value, WorkOrderStatus::InProgress->value])
             ->latest()->limit(20)->get();
     }
 
@@ -83,25 +84,34 @@ class Scanner extends Component
 
         $product = Product::findOrFail($this->foundProductId);
         $wo      = WorkOrder::findOrFail($this->selectedWoId);
+        $qty     = (int) $this->qty;
 
-        // Cek apakah produk sudah ada di WO, jika ada tambah qty
+        // Catatan: nama kolom di bawah ini HARUS sama dengan $fillable di
+        // App\Domains\WorkOrder\Models\WorkOrderItem (qty/name/snapshot),
+        // bukan quantity/name_snapshot/cost_price_snapshot seperti sebelumnya
+        // — versi lama gagal disimpan karena kolom tersebut tidak ada.
         $existing = WorkOrderItem::where('work_order_id', $wo->id)
             ->where('product_id', $product->id)
             ->first();
 
         if ($existing) {
-            $existing->increment('quantity', (int) $this->qty);
-            $existing->update(['subtotal' => $existing->quantity * $existing->unit_price]);
+            $existing->increment('qty', $qty);
+            $existing->forceFill(['subtotal' => $existing->qty * $existing->unit_price])->save();
         } else {
             WorkOrderItem::create([
-                'work_order_id'       => $wo->id,
-                'product_id'          => $product->id,
-                'item_type'           => 'product',
-                'name_snapshot'       => $product->name,
-                'quantity'            => (int) $this->qty,
-                'unit_price'          => $product->sell_price,
-                'cost_price_snapshot' => $product->cost_price,
-                'subtotal'            => (int) $this->qty * $product->sell_price,
+                'work_order_id' => $wo->id,
+                'product_id'    => $product->id,
+                'item_type'     => 'product',
+                'name'          => $product->name,
+                'qty'           => $qty,
+                'unit_price'    => $product->sell_price,
+                'subtotal'      => $qty * $product->sell_price,
+                'snapshot'      => [
+                    'source'     => 'product',
+                    'name'       => $product->name,
+                    'sku'        => $product->sku,
+                    'unit_price' => $product->sell_price,
+                ],
             ]);
         }
 

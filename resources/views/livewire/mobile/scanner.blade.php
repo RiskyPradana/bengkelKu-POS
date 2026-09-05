@@ -77,7 +77,7 @@
         </div>
         @else
         {{-- Tambah ke WO --}}
-        <div class="bg-slate-800 rounded-2xl p-4 space-y-3">
+        <div class="bg-slate-800 rounded-2xl p-4 space-y-3" x-data>
             <p class="text-sm font-semibold text-white">Tambahkan ke Work Order</p>
             <select wire:model="selectedWoId"
                 class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none">
@@ -94,7 +94,20 @@
                         class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white text-center focus:ring-2 focus:ring-amber-400 focus:outline-none">
                 </div>
                 <div class="flex-1 flex flex-col justify-end">
-                    <button type="button" wire:click="addToWorkOrder"
+                    <button type="button"
+                        @click="
+                            if (!$wire.get('selectedWoId')) {
+                                $dispatch('notify', { type: 'error', message: 'Pilih Work Order terlebih dahulu.' });
+                            } else if (navigator.onLine) {
+                                $wire.addToWorkOrder();
+                            } else {
+                                window.BengkelOffline.queue('scanner.addToWorkOrder', {
+                                    product_id: $wire.get('foundProductId'),
+                                    wo_id: $wire.get('selectedWoId'),
+                                    qty: $wire.get('qty'),
+                                }).then(() => $dispatch('notify', { type: 'success', message: 'Tersimpan offline, akan disinkronkan otomatis.' }));
+                            }
+                        "
                         class="w-full py-3 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-600 transition-colors">
                         &#x2795; Tambah ke WO
                     </button>

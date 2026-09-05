@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#0f172a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,6 +21,22 @@
         <span class="text-amber-400 text-lg font-bold tracking-tight">&#x1F527; BengkelOS</span>
         <div class="flex-1"></div>
         <span class="text-slate-400 text-xs">{{ auth()->user()?->name }}</span>
+    </div>
+
+    {{-- Modul 7: Hybrid Offline Sync — indikator status koneksi & antrian tertunda --}}
+    <div x-data="{ online: navigator.onLine, pending: 0 }"
+         x-init="
+            window.addEventListener('bengkelos-online-status', (e) => online = e.detail.online);
+            window.addEventListener('bengkelos-queued', async () => { if (window.BengkelOffline) pending = await window.BengkelOffline.pendingCount(); });
+            window.addEventListener('bengkelos-synced', async () => { if (window.BengkelOffline) pending = await window.BengkelOffline.pendingCount(); });
+            (async () => { if (window.BengkelOffline) pending = await window.BengkelOffline.pendingCount(); })();
+         "
+         x-show="!online || pending > 0"
+         style="display:none"
+         class="px-4 py-1.5 text-xs font-medium text-center"
+         :class="online ? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'">
+        <span x-show="!online">&#x1F4E1; Sedang offline &mdash; aksi tetap tersimpan</span>
+        <span x-show="online &amp;&amp; pending > 0" x-text="'\u2601\uFE0F Menyinkronkan ' + pending + ' aksi tertunda...'"></span>
     </div>
 </header>
 
@@ -47,11 +64,6 @@
 </nav>
 
 @livewireScripts
-<script>
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
-    }
-</script>
+@stack('scripts')
 </body>
 </html>

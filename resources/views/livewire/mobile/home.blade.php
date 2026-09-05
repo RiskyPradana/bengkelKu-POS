@@ -34,8 +34,8 @@
                     <p class="text-slate-400 text-xs">{{ $wo->wo_number }}</p>
                 </div>
                 <span class="px-2 py-1 rounded-full text-xs font-medium
-                    {{ $wo->status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400' }}">
-                    {{ $wo->status === 'in_progress' ? 'On Progress' : ucfirst($wo->status) }}
+                    {{ $wo->status->value === 'In Progress' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400' }}">
+                    {{ $wo->status->value === 'In Progress' ? 'On Progress' : $wo->status->label() }}
                 </span>
             </a>
             @empty
