@@ -10,9 +10,9 @@
 
     {{-- WO List --}}
     <div class="space-y-3">
-        @forelse($workOrders as $wo)
+        @forelse($this->workOrders as $wo)
         <div class="bg-slate-800 rounded-2xl p-4">
-            <div class="flex items-start justify-between gap-3">
+            <a href="/mobile/wo/{{ $wo->id }}" class="flex items-start justify-between gap-3">
                 <div class="flex-1 min-w-0">
                     <p class="text-white font-semibold">{{ $wo->vehicle?->plate_number }} &mdash; {{ trim(($wo->vehicle?->brand ?? '').' '.($wo->vehicle?->type ?? '')) ?: '-' }}</p>
                     <p class="text-slate-400 text-xs mt-0.5">{{ $wo->wo_number ?? ('WO-'.str($wo->id)->substr(0,8)) }} &bull; {{ $wo->customer?->name }}</p>
@@ -22,7 +22,7 @@
                        ($wo->status->value === 'Completed' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400') }}">
                     {{ $wo->status->label() }}
                 </span>
-            </div>
+            </a>
 
             @if($wo->complaint)
             <p class="text-slate-400 text-xs mt-2 line-clamp-2">{{ $wo->complaint }}</p>
@@ -42,6 +42,9 @@
                     &#x2705; Selesai
                 </button>
                 @endif
+                <a href="/mobile/wo/{{ $wo->id }}" class="px-3 py-2 bg-slate-700 text-slate-300 rounded-xl text-xs font-medium">
+                    &#x2139; Detail
+                </a>
                 <a href="/mobile/scanner?wo={{ $wo->id }}" class="px-3 py-2 bg-slate-700 text-slate-300 rounded-xl text-xs font-medium">
                     &#x1F4F7; Scan
                 </a>
@@ -52,7 +55,7 @@
         @endforelse
     </div>
 
-    <div class="pb-2">{{ $workOrders->links() }}</div>
+    <div class="pb-2">{{ $this->workOrders->links() }}</div>
 
     {{-- Toast --}}
     <div x-data="{ show:false, msg:'', type:'success' }"

@@ -15,6 +15,11 @@ use Illuminate\Support\Facades\Schema;
  * dihubungkan ke `invoices` lewat `invoices.work_order_id`. Semua query
  * yang sebelumnya join ke `invoice_items` (penyebab error di halaman
  * Dashboard Analitik) sudah diarahkan ke `work_order_items`.
+ *
+ * CATATAN Sesi 14: tabel `invoices` juga TIDAK memiliki kolom `customer_id`
+ * (pelanggan hanya tersimpan di `work_orders.customer_id`). topCustomers()
+ * sebelumnya join langsung `invoices.customer_id` -> error "Unknown column".
+ * Sekarang di-join lewat `work_orders` terlebih dahulu.
  */
 class AnalyticsService
 {
@@ -226,11 +231,16 @@ class AnalyticsService
 
     /**
      * Pelanggan paling loyal berdasarkan nilai belanja.
+     *
+     * Sesi 14 fix: `invoices` tidak punya kolom `customer_id` — pelanggan
+     * hanya tercatat di `work_orders.customer_id`. Join lewat work_orders
+     * dulu supaya tidak error "Unknown column 'i.customer_id'".
      */
     public function topCustomers(Carbon $start, Carbon $end, int $limit = 10): array
     {
         return DB::table('invoices as i')
-            ->leftJoin('customers as c', 'c.id', '=', 'i.customer_id')
+            ->join('work_orders as wo', 'wo.id', '=', 'i.work_order_id')
+            ->leftJoin('customers as c', 'c.id', '=', 'wo.customer_id')
             ->selectRaw("COALESCE(c.name, 'Umum') as nama, COALESCE(c.phone, '-') as telepon, COUNT(*) as kunjungan, SUM(i.{$this->amountColumn()}) as total")
             ->where('i.status', '!=', 'void')
             ->whereBetween('i.created_at', [$start, $end])

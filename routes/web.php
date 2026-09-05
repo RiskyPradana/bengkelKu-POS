@@ -7,15 +7,19 @@ use App\Livewire\CRM\Reminders;
 use App\Livewire\Customer\Index as CustomerIndex;
 use App\Livewire\Dashboard;
 use App\Livewire\Analytics\OwnerDashboard;
+use App\Livewire\MasterData\Index as MasterDataIndex;
 use App\Livewire\Settings\UserManagement;
 use App\Livewire\Settings\BranchManagement;
 use App\Livewire\Settings\RoleSettings;
 use App\Livewire\Settings\NetworkSettings;
 use App\Livewire\Settings\PrinterSettings;
+use App\Livewire\Settings\VoucherSettings;
+use App\Livewire\Settings\ImportData;
 use App\Livewire\Inventory\Index as InventoryIndex;
 use App\Livewire\MobileMechanic\Home as MobileHome;
 use App\Livewire\MobileMechanic\Scanner;
 use App\Livewire\MobileMechanic\WorkOrders as MobileWorkOrders;
+use App\Livewire\MobileMechanic\WorkOrderDetail as MobileWorkOrderDetail;
 use App\Livewire\Pos\Cashier;
 use App\Livewire\Purchasing\Index as PurchasingIndex;
 use App\Livewire\Reports\Index as ReportsIndex;
@@ -66,6 +70,11 @@ Route::middleware(['auth', 'role.access'])->group(function (): void {
     Route::get('/pengaturan/jaringan', NetworkSettings::class)->name('settings.network');
     Route::get('/pengaturan/printer',  PrinterSettings::class)->name('settings.printer');
 
+    // Sesi 14: Master Data dinamis (Merek, Rak, Satuan), Voucher, & Import iPos
+    Route::get('/pengaturan/master-data', MasterDataIndex::class)->name('settings.master-data');
+    Route::get('/pengaturan/voucher',     VoucherSettings::class)->name('settings.vouchers');
+    Route::get('/pengaturan/import',      ImportData::class)->name('settings.import');
+
     // Operasional
     Route::get('/work-orders', WorkOrderIndex::class)->name('work-orders');
     Route::get('/kasir',       Cashier::class)->name('pos.cashier');
@@ -98,4 +107,7 @@ Route::middleware(['auth', 'role.access'])->prefix('mobile')->name('mobile.')->g
     Route::get('/',        MobileHome::class)->name('home');
     Route::get('/scanner', Scanner::class)->name('scanner');
     Route::get('/wo',      MobileWorkOrders::class)->name('wo');
+    // Sesi 14: sebelumnya link "klik WO" di Beranda mekanik mengarah ke sini
+    // tapi route ini belum ada sama sekali (404 diam-diam). Sekarang lengkap.
+    Route::get('/wo/{id}', MobileWorkOrderDetail::class)->name('wo.detail');
 });
