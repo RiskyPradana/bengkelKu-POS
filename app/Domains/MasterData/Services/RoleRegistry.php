@@ -106,6 +106,8 @@ class RoleRegistry
             'settings.users'    => 'Manajemen User',
             'settings.branches' => 'Manajemen Cabang',
             'settings.roles'    => 'Role & Hak Akses',
+            'settings.network'  => 'Jaringan Lokal (LAN)',
+            'settings.printer'  => 'Pengaturan Printer',
             'mobile.home'       => 'Mode Mekanik (Mobile)',
             'mobile.scanner'    => 'Scan Sparepart (Mobile)',
             'mobile.wo'         => 'SPK Mekanik (Mobile)',

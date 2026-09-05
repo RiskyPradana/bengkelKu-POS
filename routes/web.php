@@ -10,6 +10,8 @@ use App\Livewire\Analytics\OwnerDashboard;
 use App\Livewire\Settings\UserManagement;
 use App\Livewire\Settings\BranchManagement;
 use App\Livewire\Settings\RoleSettings;
+use App\Livewire\Settings\NetworkSettings;
+use App\Livewire\Settings\PrinterSettings;
 use App\Livewire\Inventory\Index as InventoryIndex;
 use App\Livewire\MobileMechanic\Home as MobileHome;
 use App\Livewire\MobileMechanic\Scanner;
@@ -29,7 +31,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
 
-// ── Auth (Guest only) ───────────────────────────────────────────
+// ── Auth (Guest only) ─────────────────────────────────────
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', Login::class)->name('login');
@@ -42,7 +44,7 @@ Route::post('/logout', function () {
     return redirect()->route('login');
 })->middleware('auth')->name('logout');
 
-// ── Authenticated Pages (Desktop) ──────────────────────────────
+// ── Authenticated Pages (Desktop) ──────────────────────
 // Sesi 11: middleware 'role.access' ditambahkan supaya hak akses role
 // (diatur di /pengaturan/role) juga ditegakkan di level route, bukan cuma
 // menyembunyikan menu di sidebar.
@@ -56,9 +58,13 @@ Route::middleware(['auth', 'role.access'])->group(function (): void {
     Route::get('/analitik', OwnerDashboard::class)->name('analytics');
 
     // Pengaturan: manajemen user, cabang & role
-    Route::get('/pengaturan/user',   UserManagement::class)->name('settings.users');
-    Route::get('/pengaturan/cabang', BranchManagement::class)->name('settings.branches');
-    Route::get('/pengaturan/role',   RoleSettings::class)->name('settings.roles');
+    Route::get('/pengaturan/user',     UserManagement::class)->name('settings.users');
+    Route::get('/pengaturan/cabang',   BranchManagement::class)->name('settings.branches');
+    Route::get('/pengaturan/role',     RoleSettings::class)->name('settings.roles');
+
+    // Sesi 12: Jaringan Lokal (LAN) untuk mode offline & Pengaturan Printer
+    Route::get('/pengaturan/jaringan', NetworkSettings::class)->name('settings.network');
+    Route::get('/pengaturan/printer',  PrinterSettings::class)->name('settings.printer');
 
     // Operasional
     Route::get('/work-orders', WorkOrderIndex::class)->name('work-orders');
@@ -84,7 +90,7 @@ Route::middleware(['auth', 'role.access'])->group(function (): void {
     Route::get('/reports', ReportsIndex::class)->name('reports');
 });
 
-// ── Mobile Mekanik (PWA) ─────────────────────────────────────
+// ── Mobile Mekanik (PWA) ──────────────────────────
 // Modul 3: Mobile App untuk Mekanik
 // Sesi 11: middleware 'role.access' juga dipasang di sini.
 

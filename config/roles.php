@@ -68,6 +68,8 @@ return [
         'settings.users'     => ['owner'],
         'settings.branches'  => ['owner', 'admin'],
         'settings.roles'     => ['owner'],
+        'settings.network'   => ['owner', 'admin'],
+        'settings.printer'   => ['owner', 'admin'],
         'mobile.home'        => ['owner', 'admin', 'mekanik'],
         'mobile.scanner'     => ['owner', 'admin', 'mekanik', 'gudang'],
         'mobile.wo'          => ['owner', 'admin', 'mekanik'],

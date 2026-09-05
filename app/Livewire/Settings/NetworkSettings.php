@@ -102,7 +102,7 @@ class NetworkSettings extends Component
         $ip   = $this->lanIp !== '' ? $this->lanIp : $this->detectedIp;
         $port = $this->lanPort !== '' ? $this->lanPort : '8000';
 
-        return "http://{$ip}:{$port}";
+        return 'http://' . $ip . ':' . $port;
     }
 
     public function render()
