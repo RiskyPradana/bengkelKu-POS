@@ -4,8 +4,11 @@
 |--------------------------------------------------------------------------
 | Definisi Role & Hak Akses — BengkelKu-POS
 |--------------------------------------------------------------------------
-| Ubah di sini kalau mau menambah role atau mengatur ulang hak akses.
-| Menu sidebar dan halaman otomatis mengikuti pengaturan ini.
+| File ini dipakai sebagai NILAI AWAL / FALLBACK.
+| Setelah migration dijalankan, role & hak akses sesungguhnya disimpan di
+| tabel `role_settings` dan bisa diatur lewat menu Pengaturan > Role & Hak
+| Akses (/pengaturan/role) tanpa perlu edit file ini.
+| Lihat App\Domains\MasterData\Services\RoleRegistry.
 */
 
 return [
@@ -57,16 +60,18 @@ return [
     | Dipakai oleh <x-sidebar-addons /> dan middleware role.
     */
     'access' => [
-        'analytics'      => ['owner', 'admin'],
-        'inventory'      => ['owner', 'admin', 'gudang'],
-        'purchasing'     => ['owner', 'admin', 'gudang'],
-        'crm.reminders'  => ['owner', 'admin', 'kasir'],
-        'commission'     => ['owner', 'admin'],
-        'settings.users' => ['owner'],
-        'mobile.home'    => ['owner', 'admin', 'mekanik'],
-        'mobile.scanner' => ['owner', 'admin', 'mekanik', 'gudang'],
-        'mobile.wo'      => ['owner', 'admin', 'mekanik'],
-        'reports'        => ['owner', 'admin'],
+        'analytics'          => ['owner', 'admin'],
+        'inventory'          => ['owner', 'admin', 'gudang'],
+        'purchasing'         => ['owner', 'admin', 'gudang'],
+        'crm.reminders'      => ['owner', 'admin', 'kasir'],
+        'commission'         => ['owner', 'admin'],
+        'settings.users'     => ['owner'],
+        'settings.branches'  => ['owner', 'admin'],
+        'settings.roles'     => ['owner'],
+        'mobile.home'        => ['owner', 'admin', 'mekanik'],
+        'mobile.scanner'     => ['owner', 'admin', 'mekanik', 'gudang'],
+        'mobile.wo'          => ['owner', 'admin', 'mekanik'],
+        'reports'            => ['owner', 'admin'],
     ],
 
     /*

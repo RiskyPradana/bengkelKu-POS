@@ -8,6 +8,8 @@ use App\Livewire\Customer\Index as CustomerIndex;
 use App\Livewire\Dashboard;
 use App\Livewire\Analytics\OwnerDashboard;
 use App\Livewire\Settings\UserManagement;
+use App\Livewire\Settings\BranchManagement;
+use App\Livewire\Settings\RoleSettings;
 use App\Livewire\Inventory\Index as InventoryIndex;
 use App\Livewire\MobileMechanic\Home as MobileHome;
 use App\Livewire\MobileMechanic\Scanner;
@@ -27,7 +29,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
 
-// ── Auth (Guest only) ───────────────────────────────────────────────
+// ── Auth (Guest only) ───────────────────────────────────────────
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', Login::class)->name('login');
@@ -40,7 +42,7 @@ Route::post('/logout', function () {
     return redirect()->route('login');
 })->middleware('auth')->name('logout');
 
-// ── Authenticated Pages (Desktop) ───────────────────────────────────
+// ── Authenticated Pages (Desktop) ──────────────────────────────
 
 Route::middleware('auth')->group(function (): void {
 
@@ -50,8 +52,10 @@ Route::middleware('auth')->group(function (): void {
     // Fase 3: Dashboard Analitik Owner (grafik omzet, sparepart terlaris, performa mekanik)
     Route::get('/analitik', OwnerDashboard::class)->name('analytics');
 
-    // Pengaturan: manajemen user & role
-    Route::get('/pengaturan/user', UserManagement::class)->name('settings.users');
+    // Pengaturan: manajemen user, cabang & role
+    Route::get('/pengaturan/user',   UserManagement::class)->name('settings.users');
+    Route::get('/pengaturan/cabang', BranchManagement::class)->name('settings.branches');
+    Route::get('/pengaturan/role',   RoleSettings::class)->name('settings.roles');
 
     // Operasional
     Route::get('/work-orders', WorkOrderIndex::class)->name('work-orders');
@@ -77,7 +81,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/reports', ReportsIndex::class)->name('reports');
 });
 
-// ── Mobile Mekanik (PWA) ─────────────────────────────────────────────
+// ── Mobile Mekanik (PWA) ─────────────────────────────────────
 // Modul 3: Mobile App untuk Mekanik
 
 Route::middleware('auth')->prefix('mobile')->name('mobile.')->group(function (): void {

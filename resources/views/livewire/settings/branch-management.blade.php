@@ -114,4 +114,60 @@
                         {{ $editingId ? 'Ubah Cabang' : 'Tambah Cabang Baru' }}
                     </h2>
                     <button wire:click="$set('showModal', false)" class="p-1 text-gray-400 dark:text-slate-500 rounded hover:bg-gray-100 dark:hover:bg-slate-800">
-                        <svg class="w-5 h-
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form wire:submit="save" class="px-5 py-4 space-y-4">
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Nama Cabang</label>
+                        <input type="text" wire:model="name" placeholder="contoh: Cabang Kuta"
+                               class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Kode Cabang</label>
+                        <input type="text" wire:model="code" placeholder="contoh: KTA"
+                               class="w-full text-sm uppercase border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        @error('code') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Alamat <span class="text-gray-400 dark:text-slate-500">(opsional)</span></label>
+                        <textarea wire:model="address" rows="2"
+                                  class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500"></textarea>
+                        @error('address') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Telepon <span class="text-gray-400 dark:text-slate-500">(opsional)</span></label>
+                        <input type="text" wire:model="phone" placeholder="0361xxxxxxx"
+                               class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        @error('phone') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <label class="flex items-center gap-2.5 pt-1">
+                        <input type="checkbox" wire:model="isActive"
+                               class="text-blue-600 border-gray-300 dark:border-slate-700 rounded focus:ring-blue-500">
+                        <span class="text-sm text-gray-700 dark:text-slate-200">Cabang aktif</span>
+                    </label>
+
+                    <div class="flex gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+                        <button type="button" wire:click="$set('showModal', false)"
+                                class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-800 rounded-lg hover:bg-gray-200">
+                            Batal
+                        </button>
+                        <button type="submit" wire:loading.attr="disabled"
+                                class="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60">
+                            <span wire:loading.remove wire:target="save">{{ $editingId ? 'Simpan Perubahan' : 'Tambah Cabang' }}</span>
+                            <span wire:loading wire:target="save">Menyimpan...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+</div>
