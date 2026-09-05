@@ -10,4 +10,5 @@ return [
     App\Domains\Catalog\CatalogServiceProvider::class,
     App\Domains\WorkOrder\WorkOrderServiceProvider::class,
     App\Domains\POS\POSServiceProvider::class,
+    App\Domains\Purchasing\PurchasingServiceProvider::class,
 ];
