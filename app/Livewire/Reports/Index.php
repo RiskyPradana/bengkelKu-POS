@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reports;
 
+use App\Domains\MasterData\Models\AppSetting;
 use App\Domains\POS\Enums\InvoiceStatus;
 use App\Domains\POS\Models\Invoice;
 use App\Domains\WorkOrder\Enums\WorkOrderStatus;
@@ -101,5 +102,23 @@ class Index extends Component
     {
         $current = now()->year;
         return range($current, $current - 4);
+    }
+
+    // Sesi 12: Pengaturan printer laporan (ukuran kertas A4/Letter/F4 & orientasi),
+    // dipakai saat mencetak halaman Laporan lewat tombol "Cetak Laporan".
+    public function getReportPrintSettingsProperty(): array
+    {
+        $saved = AppSetting::getMany([
+            'printer.report_paper_size',
+            'printer.report_orientation',
+        ], [
+            'printer.report_paper_size'  => 'A4',
+            'printer.report_orientation' => 'portrait',
+        ]);
+
+        return [
+            'paper_size'  => (string) $saved['printer.report_paper_size'],
+            'orientation' => (string) $saved['printer.report_orientation'],
+        ];
     }
 }

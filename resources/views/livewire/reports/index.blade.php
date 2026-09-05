@@ -7,6 +7,8 @@ $topProd = $this->topProducts;
 $months = $this->months;
 $years  = $this->years;
 
+$printSettings = $this->reportPrintSettings;
+
 $statusColors = [
     'Pending'     => 'bg-amber-100 text-amber-700',
     'In Progress' => 'bg-blue-100 text-blue-700',
@@ -15,9 +17,22 @@ $statusColors = [
 ];
 @endphp
 
-<div>
+<div id="laporan-print-area">
+
+{{-- Sesi 12: CSS cetak laporan mengikuti Pengaturan Printer (ukuran kertas A4/Letter/F4 & orientasi),
+     dan menyembunyikan sidebar/topbar/filter saat dicetak. --}}
+<style>
+    @media print {
+        @page { size: {{ $printSettings['paper_size'] }} {{ $printSettings['orientation'] }}; margin: 12mm; }
+        body * { visibility: hidden; }
+        #laporan-print-area, #laporan-print-area * { visibility: visible; }
+        #laporan-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+        .no-print { display: none !important; }
+    }
+</style>
+
 {{-- ===== PERIOD FILTER ===== --}}
-<div class="flex flex-wrap items-center gap-3 mb-6">
+<div class="flex flex-wrap items-center gap-3 mb-6 no-print">
     <div class="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-sm">
         <span class="text-slate-400 text-sm">📅</span>
         <select wire:model.live="month" class="text-sm font-semibold text-slate-700 bg-transparent border-none focus:outline-none pr-1">
@@ -40,6 +55,13 @@ $statusColors = [
         </button>
         @endforeach
     </div>
+    <button type="button" onclick="window.print()"
+            class="ml-auto flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+        </svg>
+        Cetak Laporan ({{ $printSettings['paper_size'] }})
+    </button>
 </div>
 
 {{-- ===== REVENUE KPI CARDS ===== --}}
@@ -258,4 +280,4 @@ $statusColors = [
         </table>
     </div>
 </div>
-</div>{{-- root wrapper --}}
+</div>{{-- /#laporan-print-area --}}

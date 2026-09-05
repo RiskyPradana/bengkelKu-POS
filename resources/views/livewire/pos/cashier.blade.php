@@ -30,6 +30,7 @@
     $hasWo    = $this->selectedWorkOrder !== null;
     $hasInv   = $this->selectedInvoice   !== null;
     $cartCount = $this->cartLines->count();
+    $printerSettings = $this->printerSettings;
 @endphp
 
 <div>
@@ -112,6 +113,7 @@
 <style>
     @keyframes shrink-bar { from { width:100% } to { width:0% } }
     @media print {
+        @page { size: {{ $printerSettings['paper_width_mm'] }}mm auto; margin: 0; }
         body > * { display: none !important; }
         #print-receipt { display: block !important; }
     }
@@ -805,7 +807,7 @@
 {{-- ╚════════════════════════════════════════════════════════╝ --}}
 @if ($hasWo && $hasInv)
 <div id="print-receipt" style="display:none">
-    <div style="max-width:320px;margin:0 auto;font-family:monospace;font-size:13px;padding:20px">
+    <div style="max-width:{{ $printerSettings['paper_width_px'] }}px;margin:0 auto;font-family:monospace;font-size:{{ $printerSettings['font_size'] }}px;padding:20px">
         <div style="text-align:center;margin-bottom:12px">
             <p style="font-size:18px;font-weight:bold;margin:0">BengkelOS</p>
             <p style="margin:2px 0;font-size:11px;color:#666">{{ $this->activeBranch?->name ?? '' }}</p>
