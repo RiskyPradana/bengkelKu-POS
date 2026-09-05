@@ -220,9 +220,17 @@
                 </div>
             @endforeach
         </div>
-        <p class="mt-3 text-xs text-gray-400 dark:text-slate-500">
-            Hak akses tiap halaman bisa diubah di file <code>config/roles.php</code>.
-        </p>
+
+        @if (\Illuminate\Support\Facades\Route::has('settings.roles'))
+            <p class="mt-3 text-xs text-gray-400 dark:text-slate-500">
+                Role & hak akses tiap halaman bisa diatur di menu
+                <a href="{{ route('settings.roles') }}" class="font-medium text-blue-600 hover:underline">Role & Hak Akses</a>.
+            </p>
+        @else
+            <p class="mt-3 text-xs text-gray-400 dark:text-slate-500">
+                Hak akses tiap halaman bisa diubah di file <code>config/roles.php</code>.
+            </p>
+        @endif
     </div>
 
     {{-- Modal form --}}
