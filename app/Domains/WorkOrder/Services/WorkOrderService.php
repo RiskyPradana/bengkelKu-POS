@@ -40,21 +40,28 @@ class WorkOrderService
         });
     }
 
-    public function addProductItem(WorkOrder $workOrder, Product $product, int $quantity = 1): WorkOrderItem
+    /**
+     * Sesi 14: $unitPriceOverride dipakai kasir untuk memilih model harga
+     * (Level 1-4) saat menambah sparepart ke SPK, alih-alih selalu memakai
+     * harga jual utama produk.
+     */
+    public function addProductItem(WorkOrder $workOrder, Product $product, int $quantity = 1, ?float $unitPriceOverride = null): WorkOrderItem
     {
+        $unitPrice = $unitPriceOverride ?? $product->sell_price;
+
         return $this->storeLineItem(
             workOrder: $workOrder,
             itemType: 'product',
             referenceKey: 'product_id',
             referenceId: $product->getKey(),
             name: $product->name,
-            unitPrice: $product->sell_price,
+            unitPrice: $unitPrice,
             quantity: $quantity,
             snapshot: [
                 'source' => 'product',
                 'name' => $product->name,
                 'sku' => $product->sku,
-                'unit_price' => $product->sell_price,
+                'unit_price' => $unitPrice,
             ],
         );
     }

@@ -23,6 +23,8 @@ class Invoice extends Model
         'subtotal',
         'discount',
         'tax',
+        'voucher_id',
+        'voucher_code',
         'grand_total',
         'status',
     ];
@@ -61,5 +63,10 @@ class Invoice extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function voucher(): BelongsTo
+    {
+        return $this->belongsTo(Voucher::class);
     }
 }

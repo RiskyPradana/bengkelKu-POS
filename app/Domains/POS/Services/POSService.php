@@ -5,6 +5,7 @@ namespace App\Domains\POS\Services;
 use App\Domains\POS\Enums\InvoiceStatus;
 use App\Domains\POS\Models\Invoice;
 use App\Domains\POS\Models\Payment;
+use App\Domains\POS\Models\Voucher;
 use App\Domains\WorkOrder\Models\WorkOrder;
 use App\Domains\WorkOrder\Services\WorkOrderService;
 use Illuminate\Support\Facades\DB;
@@ -29,16 +30,29 @@ class POSService
             $tax = (float) ($overrides['tax'] ?? 0);
             $grandTotal = max(0, $subtotal - $discount + $tax);
 
-            return Invoice::create([
+            $voucherId = $overrides['voucher_id'] ?? null;
+            $voucherCode = $overrides['voucher_code'] ?? null;
+
+            $invoice = Invoice::create([
                 'branch_id' => $workOrder->branch_id,
                 'work_order_id' => $workOrder->id,
                 'invoice_number' => $this->buildInvoiceNumber(),
                 'subtotal' => $subtotal,
                 'discount' => $discount,
                 'tax' => $tax,
+                'voucher_id' => $voucherId,
+                'voucher_code' => $voucherCode,
                 'grand_total' => $grandTotal,
                 'status' => InvoiceStatus::Unpaid,
             ]);
+
+            // Sesi 14: hitung pemakaian voucher hanya sekali, saat invoice dibuat.
+            if ($voucherId) {
+                $voucher = Voucher::query()->find($voucherId);
+                $voucher?->increment('used_count');
+            }
+
+            return $invoice;
         });
     }
 
