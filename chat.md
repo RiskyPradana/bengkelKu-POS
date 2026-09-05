@@ -315,7 +315,51 @@ Melanjutkan 4 sisa pekerjaan dari Sesi 10, sekaligus permintaan baru dari user:
 
 ---
 
-## Status Terbaru (setelah Sesi 11)
+## Sesi 12: Pengaturan Jaringan Lokal (LAN) & Pengaturan Printer
+
+### Konteks
+
+User berencana agar mode offline BengkelOS bisa diakses lewat jaringan lokal (WiFi) — jadi kalau internet mati, mekanik/kasir tetap bisa mengakses aplikasi lewat alamat IP lokal server. User juga minta pengaturan printer: printer laporan di kertas A4 (untuk printer inkjet seperti Epson/Canon), dan printer struk di printer thermal 58mm ("58x40").
+
+### Yang dibangun
+
+1. **Penyimpanan pengaturan generik (`app_settings`)** — migration tabel key-value (`key` string primary, `value` json) + model `App\Domains\MasterData\Models\AppSetting` dengan helper statis `get()`, `set()`, `getMany()`, `setMany()`. Dipakai sebagai penyimpanan untuk dua halaman pengaturan baru di bawah, dan dirancang supaya bisa dipakai lagi untuk pengaturan lain di masa depan tanpa perlu tabel baru setiap kali.
+2. **Halaman Jaringan Lokal (LAN)** (`/pengaturan/jaringan`, route `settings.network`) — `app/Livewire/Settings/NetworkSettings.php` + view:
+   - Mendeteksi otomatis alamat IP lokal server (lewat `hostname -I` di Linux, fallback `gethostbyname`), dengan tombol "deteksi ulang".
+   - Field IP (bisa ditimpa manual) dan Port, serta saklar aktif/nonaktifkan mode LAN.
+   - Menampilkan alamat akses LAN lengkap (`http://IP:PORT`) yang bisa langsung dibagikan ke HP mekanik/kasir.
+   - Panduan langkah-langkah cara memakainya saat internet mati, termasuk contoh perintah `php artisan serve --host=0.0.0.0 --port=...` (server wajib mendengarkan di `0.0.0.0`, bukan `127.0.0.1`, agar bisa diakses dari perangkat lain di WiFi yang sama).
+3. **Halaman Pengaturan Printer** (`/pengaturan/printer`, route `settings.printer`) — `app/Livewire/Settings/PrinterSettings.php` + view, dua bagian:
+   - **Printer Laporan (A4)**: nama printer (label saja), ukuran kertas (A4/Letter/F4), orientasi (potret/lanskap).
+   - **Printer Struk (Thermal)**: nama printer, lebar kertas (58mm/80mm), ukuran font struk, saklar auto-cut.
+4. **Struk kasir memakai pengaturan printer thermal** (`app/Livewire/Pos/Cashier.php` + `cashier.blade.php`):
+   - Computed property baru `printerSettings` membaca lebar kertas & ukuran font dari `AppSetting`.
+   - Blok `#print-receipt` sekarang pakai lebar (px, dikonversi dari mm) dan ukuran font dinamis, bukan `320px`/`13px` hardcode.
+   - CSS cetak (`@media print`) menambahkan `@page { size: <lebar>mm auto; margin: 0 }` supaya ukuran halaman cetak browser mengikuti lebar kertas thermal yang diatur (58mm/80mm), bukan ukuran default A4.
+5. **Laporan bisa dicetak di A4** (`app/Livewire/Reports/Index.php` + `reports/index.blade.php`):
+   - Computed property baru `reportPrintSettings` membaca ukuran kertas & orientasi dari `AppSetting`.
+   - Tombol baru "Cetak Laporan" di halaman Laporan (memanggil `window.print()`).
+   - CSS cetak baru: `@page { size: <ukuran> <orientasi>; margin: 12mm }`, plus trik "sembunyikan semua kecuali area laporan" (`visibility: hidden` di seluruh body, `visibility: visible` khusus area laporan) supaya sidebar/topbar/filter tidak ikut tercetak — tanpa perlu mengubah `layouts/admin.blade.php` atau `layouts/app.blade.php`.
+6. **Route, hak akses & menu:**
+   - `routes/web.php` — dua route baru `settings.network` (`/pengaturan/jaringan`) dan `settings.printer` (`/pengaturan/printer`), dipasang di grup middleware `['auth', 'role.access']` yang sama dengan halaman Pengaturan lain.
+   - `config/roles.php` — akses kedua halaman ini dibatasi untuk **owner & admin**.
+   - `app/Domains/MasterData/Services/RoleRegistry::manageableRoutes()` — kedua halaman ditambahkan supaya bisa diatur juga lewat halaman Role & Hak Akses (`/pengaturan/role`) kalau owner mau membatasi lebih lanjut.
+   - `resources/views/components/sidebar-addons.blade.php` — dua menu baru di grup "Pengaturan": "Jaringan Lokal (LAN)" (ikon WiFi) dan "Pengaturan Printer" (ikon printer).
+
+### Insiden kecil & perbaikannya
+
+- Pada draf pertama `NetworkSettings.php`, method `getLanUrlProperty()` sempat memakai sintaks placeholder yang salah (bukan string PHP biasa) sehingga alamat LAN akan tampil rusak. Terdeteksi segera dan diperbaiki di push berikutnya menjadi penggabungan string biasa (`'http://' . $ip . ':' . $port`).
+
+### Catatan & batasan untuk sesi berikutnya
+
+- **Setelah pull, wajib jalankan `php artisan migrate` lagi** — ada tabel baru `app_settings`.
+- Nama printer yang diisi di halaman Pengaturan Printer sifatnya hanya catatan/label di sistem — pemilihan printer fisik & driver tetap lewat kotak dialog cetak bawaan browser/OS saat tombol cetak ditekan (browser tidak punya akses langsung ke driver printer OS dari halaman web biasa).
+- Mode akses LAN memanfaatkan jaringan WiFi/router yang sama antara server dan perangkat mekanik/kasir — ini bukan mengubah cara Laravel dijalankan, jadi kalau servernya dijalankan produksi (Nginx/Apache), pastikan juga servernya mendengarkan di semua alamat (`0.0.0.0`) dan port-nya dibuka di firewall, sesuai catatan di halaman Jaringan Lokal (LAN).
+- Deteksi IP lokal otomatis mengandalkan `shell_exec` dan `hostname -I` (khas Linux); kalau `shell_exec` dimatikan di `php.ini` (umum di beberapa shared hosting) atau di Windows, sistem otomatis jatuh ke `gethostbyname(gethostname())` sebagai fallback — IP tetap bisa diisi manual kalau deteksi otomatis kurang akurat.
+
+---
+
+## Status Terbaru (setelah Sesi 12)
 
 ### Yang Sudah Selesai (tambahan dari sesi-sesi sebelumnya):
 14. ✅ Mobile Mekanik (PWA): scan barcode & kerjakan SPK dari HP (bug status/UUID/kolom sudah diperbaiki di Sesi 10)
@@ -334,13 +378,15 @@ Melanjutkan 4 sisa pekerjaan dari Sesi 10, sekaligus permintaan baru dari user:
 27. ✅ Middleware role di level route (akses URL langsung sekarang ikut diblokir sesuai role, bukan cuma sembunyikan menu)
 28. ✅ Ikon PWA (`public/icons/pwa-icon.svg`) untuk `manifest.json`
 29. ✅ Stok check saat menambah/menaikkan jumlah sparepart di keranjang kasir
+30. ✅ Pengaturan Jaringan Lokal (LAN) untuk akses mode offline via WiFi (`/pengaturan/jaringan`)
+31. ✅ Pengaturan Printer — printer laporan A4 (Epson/Canon dll) & printer struk thermal 58mm/80mm (`/pengaturan/printer`), termasuk cetak struk kasir & tombol "Cetak Laporan" yang sudah mengikuti pengaturan ini
 
 ### Yang Perlu Dilanjutkan:
 1. 🔲 Redesign tombol "Cari Invoice" di Quick Actions kasir agar benar-benar mencari invoice (saat ini hanya link balik ke halaman Kasir)
 
 ### File Yang Perlu Diperhatikan:
-- `app/Livewire/Pos/Cashier.php` - Cashier component (stok check + startCollapsed) — Sesi 11
-- `resources/views/livewire/pos/cashier.blade.php` - Cashier view
+- `app/Livewire/Pos/Cashier.php` - Cashier component (stok check + startCollapsed + printerSettings) — Sesi 11 & 12
+- `resources/views/livewire/pos/cashier.blade.php` - Cashier view (struk mengikuti lebar kertas thermal — Sesi 12)
 - `app/Domains/POS/Services/POSService.php` - POS business logic
 - `app/Domains/WorkOrder/Services/WorkOrderService.php` - WorkOrder service
 - `app/Domains/WorkOrder/Services/OfflineSyncService.php` - Modul 7, replay aksi offline
@@ -352,11 +398,13 @@ Melanjutkan 4 sisa pekerjaan dari Sesi 10, sekaligus permintaan baru dari user:
 - `public/sw.js` - Modul 7, Service Worker (cache + Background Sync)
 - `resources/views/components/layouts/app.blade.php` - Layout untuk Livewire (desktop) — sidebar collapse & scroll memory (Sesi 11)
 - `resources/views/layouts/mobile.blade.php` - Layout untuk PWA Mobile Mekanik
-- `app/Domains/MasterData/Services/RoleRegistry.php` - Jembatan config/roles.php ↔ tabel role_settings
-- `app/Livewire/Settings/{UserManagement,BranchManagement,RoleSettings}.php` - Halaman Pengaturan
+- `app/Domains/MasterData/Services/RoleRegistry.php` - Jembatan config/roles.php ↔ tabel role_settings, termasuk `manageableRoutes()` — Sesi 12
+- `app/Domains/MasterData/Models/AppSetting.php` - Penyimpanan pengaturan generik (key-value) — Sesi 12
+- `app/Livewire/Settings/{UserManagement,BranchManagement,RoleSettings,NetworkSettings,PrinterSettings}.php` - Halaman Pengaturan
+- `app/Livewire/Reports/Index.php` - Laporan, sekarang bisa dicetak A4 lewat `reportPrintSettings` — Sesi 12
 - `app/Livewire/MobileMechanic/{Home,Scanner,WorkOrders}.php` - Mobile Mekanik (bug sudah diperbaiki Sesi 10)
 - `bootstrap/app.php` - alias middleware `role.access` — Sesi 11
-- `routes/web.php` - middleware `role.access` dipasang di route halaman utama & mobile — Sesi 11
+- `routes/web.php` - middleware `role.access` dipasang di route halaman utama & mobile, + route `settings.network`/`settings.printer` — Sesi 11 & 12
 
 ### Known Issues:
 - Tombol "Cari Invoice" di kasir belum jadi pencarian invoice sungguhan (masih link balik ke halaman Kasir)
