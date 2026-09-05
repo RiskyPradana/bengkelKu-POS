@@ -308,12 +308,33 @@
                     @endif
 
                     @if ($role === 'mekanik')
-                        <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Rate Komisi Khusus (%) <span class="text-gray-400 dark:text-slate-500">(opsional)</span></label>
-                            <input type="number" step="0.5" min="0" max="100" wire:model="commissionRate"
-                                   placeholder="kosongkan untuk pakai default {{ config('whatsapp.commission_rate', env('COMMISSION_RATE', 10)) }}%"
-                                   class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
-                            @error('commissionRate') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        <div class="space-y-4 p-3 border border-amber-100 rounded-lg bg-amber-50/50">
+                            <p class="text-xs font-semibold text-amber-700">Pengaturan Profit Mekanik</p>
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Rate Komisi Khusus (%) <span class="text-gray-400 dark:text-slate-500">(opsional)</span></label>
+                                <input type="number" step="0.5" min="0" max="100" wire:model="commissionRate"
+                                       placeholder="kosongkan untuk pakai default {{ config('whatsapp.commission_rate', env('COMMISSION_RATE', 10)) }}%"
+                                       class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                                <p class="mt-1 text-xs text-gray-400">Profit 1: dipakai untuk komisi tiap kendaraan masuk (WO selesai dibayar).</p>
+                                @error('commissionRate') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Target KPI / Bulan</label>
+                                    <input type="number" min="0" step="1" wire:model="monthlyTarget"
+                                           placeholder="contoh: 40"
+                                           class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                                    @error('monthlyTarget') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Bonus KPI (Rp)</label>
+                                    <input type="number" min="0" step="1000" wire:model="kpiBonusAmount"
+                                           placeholder="contoh: 200000"
+                                           class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                                    @error('kpiBonusAmount') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-400">Profit 2: bonus cair penuh jika jumlah WO selesai bulan berjalan mencapai target di atas.</p>
                         </div>
                     @endif
 

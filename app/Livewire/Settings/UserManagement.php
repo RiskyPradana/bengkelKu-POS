@@ -39,6 +39,8 @@ class UserManagement extends Component
     public string $password = '';
     public string $passwordConfirmation = '';
     public ?string $commissionRate = null;
+    public ?string $monthlyTarget = null;
+    public ?string $kpiBonusAmount = null;
 
     public function mount(): void
     {
@@ -57,11 +59,13 @@ class UserManagement extends Component
                 'max:150',
                 Rule::unique('users', 'email')->ignore($this->editingId),
             ],
-            'role'           => ['required', Rule::in($roleKeys)],
-            'phone'          => ['nullable', 'string', 'max:25'],
-            'isActive'       => ['boolean'],
-            'commissionRate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'password'       => $this->editingId
+            'role'            => ['required', Rule::in($roleKeys)],
+            'phone'           => ['nullable', 'string', 'max:25'],
+            'isActive'        => ['boolean'],
+            'commissionRate'  => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'monthlyTarget'   => ['nullable', 'integer', 'min:0'],
+            'kpiBonusAmount'  => ['nullable', 'numeric', 'min:0'],
+            'password'        => $this->editingId
                 ? ['nullable', Password::min(8)]
                 : ['required', Password::min(8)],
         ];
@@ -76,6 +80,8 @@ class UserManagement extends Component
             'phone'          => 'nomor WhatsApp',
             'password'       => 'password',
             'commissionRate' => 'rate komisi',
+            'monthlyTarget'  => 'target KPI bulanan',
+            'kpiBonusAmount' => 'bonus KPI',
         ];
     }
 
@@ -98,6 +104,12 @@ class UserManagement extends Component
         $this->isActive  = (bool) ($user->is_active ?? true);
         $this->commissionRate = isset($user->commission_rate) && $user->commission_rate !== null
             ? (string) $user->commission_rate
+            : null;
+        $this->monthlyTarget = isset($user->monthly_target) && $user->monthly_target !== null
+            ? (string) $user->monthly_target
+            : null;
+        $this->kpiBonusAmount = isset($user->kpi_bonus_amount) && $user->kpi_bonus_amount !== null
+            ? (string) $user->kpi_bonus_amount
             : null;
         $this->password = '';
         $this->passwordConfirmation = '';
@@ -137,6 +149,18 @@ class UserManagement extends Component
         if (Schema::hasColumn('users', 'commission_rate')) {
             $data['commission_rate'] = ($this->commissionRate !== null && $this->commissionRate !== '')
                 ? (float) $this->commissionRate
+                : null;
+        }
+
+        if (Schema::hasColumn('users', 'monthly_target')) {
+            $data['monthly_target'] = ($this->monthlyTarget !== null && $this->monthlyTarget !== '')
+                ? (int) $this->monthlyTarget
+                : null;
+        }
+
+        if (Schema::hasColumn('users', 'kpi_bonus_amount')) {
+            $data['kpi_bonus_amount'] = ($this->kpiBonusAmount !== null && $this->kpiBonusAmount !== '')
+                ? (float) $this->kpiBonusAmount
                 : null;
         }
 
@@ -265,6 +289,8 @@ class UserManagement extends Component
         $this->password  = '';
         $this->passwordConfirmation = '';
         $this->commissionRate = null;
+        $this->monthlyTarget = null;
+        $this->kpiBonusAmount = null;
 
         $this->resetValidation();
     }
@@ -281,9 +307,9 @@ class UserManagement extends Component
     private function hasTransactions(string $userId): bool
     {
         $checks = [
-            ['table' => 'work_orders', 'column' => 'mechanic_id'],
+            ['table' => 'work_orders', 'column' => 'assigned_mechanic_id'],
             ['table' => 'invoices', 'column' => 'user_id'],
-            ['table' => 'mechanic_commissions', 'column' => 'mechanic_id'],
+            ['table' => 'mechanic_commissions', 'column' => 'user_id'],
         ];
 
         foreach ($checks as $check) {
