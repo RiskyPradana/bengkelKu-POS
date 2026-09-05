@@ -1,25 +1,25 @@
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" defer></script>
-<script>
-    function printBarcodeCanvas(canvasId, title, priceText) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) return;
-        const dataUrl = canvas.toDataURL('image/png');
-        const w = window.open('', '_blank', 'width=420,height=340');
-        if (!w) return;
-        w.document.write(
-            '<html><body style="text-align:center;font-family:sans-serif;padding:24px">' +
-            '<img src="' + dataUrl + '" style="max-width:100%" />' +
-            '<p style="margin-top:10px;font-weight:bold">' + title + '</p>' +
-            '<p>' + priceText + '</p>' +
-            '</body></html>'
-        );
-        w.document.close();
-        w.focus();
-        setTimeout(function () { w.print(); w.close(); }, 350);
-    }
-</script>
-
 <div class="p-4 space-y-5 md:p-6">
+
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" defer></script>
+    <script>
+        function printBarcodeCanvas(canvasId, title, priceText) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const dataUrl = canvas.toDataURL('image/png');
+            const w = window.open('', '_blank', 'width=420,height=340');
+            if (!w) return;
+            w.document.write(
+                '<html><body style="text-align:center;font-family:sans-serif;padding:24px">' +
+                '<img src="' + dataUrl + '" style="max-width:100%" />' +
+                '<p style="margin-top:10px;font-weight:bold">' + title + '</p>' +
+                '<p>' + priceText + '</p>' +
+                '</body></html>'
+            );
+            w.document.close();
+            w.focus();
+            setTimeout(function () { w.print(); w.close(); }, 350);
+        }
+    </script>
 
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
