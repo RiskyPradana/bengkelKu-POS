@@ -51,6 +51,7 @@
     Fix #15 : Rounding desimal dipertahankan
     Fix #16 : Category tabs lebih efisien
     Fix #17 : Tombol Buat SPK dari kasir
+    Sesi 14 : Voucher & potongan manual + pilihan level harga per item
 --}}
 
 <div
@@ -236,7 +237,7 @@
         >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 9V5h4M3 15v4h4M17 5h4v4M17 19h4v-4M7 8h.01M12 8h.01M17 8h.01M7 12h.01M12 12h.01M17 12h.01M7 16h.01M12 16h.01M17 16h.01"/>
-            </svg>
+                    </svg>
             <span class="hidden sm:inline">Scan</span>
             <kbd class="hidden xl:inline-flex items-center rounded-md border border-slate-700 bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-300">F2</kbd>
         </button>
@@ -423,6 +424,7 @@
                     @forelse ($this->catalogItems as $item)
                         <article
                             wire:key="item-{{ $item['type'] }}-{{ $item['id'] }}"
+                            x-data="{ selectedLevel: '' }"
                             class="group flex flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-md hover:border-slate-300"
                         >
                             <div>
@@ -441,20 +443,44 @@
                                 @if ($item['meta'])
                                     <p class="mt-1 text-[10px] text-slate-400 font-mono tracking-wider">{{ $item['meta'] }}</p>
                                 @endif
+
+                                {{-- Sesi 14: pilihan model harga (Level 2-4), mengikuti data iPos 5 --}}
+                                @if ($item['type'] === 'product' && ($item['price_mode'] ?? 'single') === 'level' && !empty($item['price_levels']))
+                                    <select x-model="selectedLevel"
+                                        class="mt-2 w-full rounded-lg border-slate-200 bg-white py-1.5 px-2 text-[11px] font-medium text-slate-600 focus:border-slate-400 focus:ring-slate-100">
+                                        <option value="">Harga Umum — Rp {{ number_format((float)$item['price'], 0, ',', '.') }}</option>
+                                        @foreach ($item['price_levels'] as $lvl)
+                                            <option value="{{ $lvl['level_no'] }}">{{ $lvl['level_name'] }} — Rp {{ number_format($lvl['price'], 0, ',', '.') }}</option>
+                                        @endforeach
+                                    </select>
+                                @endif
                             </div>
                             <div class="mt-4 flex items-center justify-between gap-2">
                                 <p class="text-base font-bold text-slate-900">Rp {{ number_format((float)$item['price'], 0, ',', '.') }}</p>
-                                <button
-                                    type="button"
-                                    wire:click="addCatalogItem('{{ $item['type'] }}', '{{ $item['id'] }}')"
-                                    wire:loading.attr="disabled"
-                                    class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition shadow-sm {{ $itemBtn[$item['tone']] ?? 'bg-slate-600 hover:bg-slate-500 text-white' }}"
-                                >
-                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                                    </svg>
-                                    {{ $item['in_cart'] ? 'Lagi' : 'Tambah' }}
-                                </button>
+                                @if ($item['type'] === 'product' && ($item['price_mode'] ?? 'single') === 'level' && !empty($item['price_levels']))
+                                    <button
+                                        type="button"
+                                        @click="$wire.addCatalogItem('{{ $item['type'] }}', '{{ $item['id'] }}', selectedLevel === '' ? null : parseInt(selectedLevel))"
+                                        class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition shadow-sm {{ $itemBtn[$item['tone']] ?? 'bg-slate-600 hover:bg-slate-500 text-white' }}"
+                                    >
+                                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                                        </svg>
+                                        {{ $item['in_cart'] ? 'Lagi' : 'Tambah' }}
+                                    </button>
+                                @else
+                                    <button
+                                        type="button"
+                                        wire:click="addCatalogItem('{{ $item['type'] }}', '{{ $item['id'] }}')"
+                                        wire:loading.attr="disabled"
+                                        class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition shadow-sm {{ $itemBtn[$item['tone']] ?? 'bg-slate-600 hover:bg-slate-500 text-white' }}"
+                                    >
+                                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                                        </svg>
+                                        {{ $item['in_cart'] ? 'Lagi' : 'Tambah' }}
+                                    </button>
+                                @endif
                             </div>
                         </article>
                     @empty
@@ -621,6 +647,41 @@
                 </label>
             </div>
 
+            {{-- Sesi 14: Voucher --}}
+            <div class="rounded-xl border border-dashed border-violet-200 bg-violet-50/50 p-3 space-y-2">
+                <p class="text-xs font-semibold text-violet-700">🎟️ Kode Voucher</p>
+                @if ($appliedVoucherCode)
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <p class="text-sm font-bold text-violet-900 font-mono">{{ $appliedVoucherCode }}</p>
+                            @if ($appliedVoucherInfo)
+                                <p class="text-[11px] text-violet-500">{{ $appliedVoucherInfo }}</p>
+                            @else
+                                <p class="text-[11px] text-violet-500">Sudah diterapkan pada invoice ini</p>
+                            @endif
+                        </div>
+                        @if (!$hasInv)
+                            <button type="button" wire:click="removeVoucher"
+                                class="shrink-0 rounded-lg bg-white border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100">
+                                Batalkan
+                            </button>
+                        @endif
+                    </div>
+                @elseif (!$hasInv)
+                    <div class="flex items-center gap-2">
+                        <input wire:model="voucherCode" wire:keydown.enter="applyVoucher" type="text"
+                            placeholder="Masukkan kode voucher"
+                            class="flex-1 rounded-lg border border-violet-200 bg-white py-2 px-3 text-sm uppercase tracking-wide outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100">
+                        <button type="button" wire:click="applyVoucher"
+                            class="shrink-0 rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-violet-500">
+                            Terapkan
+                        </button>
+                    </div>
+                @else
+                    <p class="text-xs text-violet-400">Invoice sudah dibuat tanpa voucher.</p>
+                @endif
+            </div>
+
             {{-- Breakdown tabel --}}
             <div class="rounded-xl bg-slate-50 border border-slate-100 p-3 space-y-2 text-sm">
                 <div class="flex items-center justify-between text-slate-500">
@@ -629,7 +690,7 @@
                 </div>
                 @if ($summary['discount'] > 0)
                 <div class="flex items-center justify-between text-slate-500">
-                    <span>Diskon</span>
+                    <span>Diskon {{ $appliedVoucherCode ? '(' . $appliedVoucherCode . ')' : '' }}</span>
                     <span class="font-semibold text-rose-600 tabular-nums">&minus; Rp {{ number_format((float)$summary['discount'], 0, ',', '.') }}</span>
                 </div>
                 @endif
