@@ -1,333 +1,362 @@
-@php
-$inputCls   = 'w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400 transition-colors';
-$labelCls   = 'block text-xs font-semibold text-slate-600 mb-1.5';
-$errorCls   = 'text-xs text-red-500 mt-1';
-$btnPrimary = 'bg-amber-400 hover:bg-amber-500 text-slate-900 font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2';
-$btnGhost   = 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors';
-@endphp
+<div class="p-4 space-y-5 md:p-6">
 
-<div>
-{{-- ===== TABS + TOOLBAR ===== --}}
-<div class="flex flex-wrap items-center gap-3 mb-5">
-    {{-- Tab Switcher --}}
-    <div class="flex items-center bg-white rounded-xl border border-slate-200 p-1 gap-1">
-        <button type="button" wire:click="switchTab('product')"
-                class="px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2
-                       {{ $tab === 'product' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800' }}">
-            📦 Sparepart
-            <span class="text-[10px] font-bold {{ $tab === 'product' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500' }} px-2 py-0.5 rounded-full">
-                {{ $this->productCount }}
-            </span>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Katalog</h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-slate-400">Master data sparepart dan jasa servis bengkel.</p>
+        </div>
+        <div class="flex gap-2">
+            @if ($this->isOwner)
+                <button wire:click="openMarginSettings"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100">
+                    &#x2696;&#xFE0F; Margin per Kategori
+                </button>
+            @endif
+            @if ($tab === 'product')
+                <button wire:click="openCreateProduct"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700">
+                    + Tambah Sparepart
+                </button>
+            @else
+                <button wire:click="openCreateService"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700">
+                    + Tambah Jasa
+                </button>
+            @endif
+        </div>
+    </div>
+
+    @if (session()->has('message'))
+        <div class="p-3 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg">{{ session('message') }}</div>
+    @endif
+
+    @unless ($this->isOwner)
+        <div class="flex items-start gap-3 p-4 text-sm border rounded-lg bg-slate-50 border-slate-200 text-slate-600">
+            <span class="text-lg">&#x1F512;</span>
+            <span>Harga pokok (harga beli) dan pengaturan margin hanya bisa dilihat &amp; diubah oleh akun <b>Owner</b>.</span>
+        </div>
+    @endunless
+
+    {{-- Tabs --}}
+    <div class="flex gap-1 p-1 bg-gray-100 dark:bg-slate-800 rounded-xl w-fit">
+        <button wire:click="switchTab('product')"
+                @class(['px-4 py-2 text-sm font-semibold rounded-lg transition-colors', 'bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-sm' => $tab === 'product', 'text-gray-500 dark:text-slate-400' => $tab !== 'product'])>
+            Sparepart ({{ $this->productCount }})
         </button>
-        <button type="button" wire:click="switchTab('service')"
-                class="px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2
-                       {{ $tab === 'service' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800' }}">
-            🔧 Jasa Servis
-            <span class="text-[10px] font-bold {{ $tab === 'service' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500' }} px-2 py-0.5 rounded-full">
-                {{ $this->serviceCount }}
-            </span>
+        <button wire:click="switchTab('service')"
+                @class(['px-4 py-2 text-sm font-semibold rounded-lg transition-colors', 'bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-sm' => $tab === 'service', 'text-gray-500 dark:text-slate-400' => $tab !== 'service'])>
+            Jasa Servis ({{ $this->serviceCount }})
         </button>
     </div>
 
-    {{-- Search --}}
-    <div class="relative flex-1 min-w-[200px] max-w-sm">
-        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-        <input wire:model.live.debounce.350ms="search" type="text"
-               placeholder="{{ $tab === 'product' ? 'Cari nama, SKU, barcode...' : 'Cari nama atau kode jasa...' }}"
-               class="{{ $inputCls }} pl-10">
+    <div class="relative max-w-md">
+        <svg class="absolute w-5 h-5 text-gray-400 left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input type="text" wire:model.live.debounce.400ms="search"
+               placeholder="Cari {{ $tab === 'product' ? 'sparepart' : 'jasa' }}..."
+               class="w-full py-2 pl-10 pr-3 text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
     </div>
 
-    <div class="flex-1"></div>
-
-    @if($tab === 'product')
-    <button type="button" wire:click="openCreateProduct" class="{{ $btnPrimary }}">
-        <span class="text-base">+</span> Tambah Sparepart
-    </button>
+    {{-- Tabel Sparepart --}}
+    @if ($tab === 'product')
+    <div class="overflow-hidden bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800">
+                    <tr class="text-xs tracking-wider text-left text-gray-500 dark:text-slate-400 uppercase">
+                        <th class="px-4 py-3 font-semibold">Nama</th>
+                        <th class="px-4 py-3 font-semibold">Kategori</th>
+                        <th class="px-4 py-3 font-semibold">SKU / Barcode</th>
+                        @if ($this->isOwner)
+                            <th class="px-4 py-3 font-semibold text-right">Harga Beli</th>
+                            <th class="px-4 py-3 font-semibold text-right">Margin</th>
+                        @endif
+                        <th class="px-4 py-3 font-semibold text-right">Harga Jual</th>
+                        <th class="px-4 py-3 font-semibold">Status</th>
+                        <th class="px-4 py-3 font-semibold text-right">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
+                    @forelse ($this->products as $p)
+                        <tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 {{ $p->is_active ? '' : 'opacity-60' }}">
+                            <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ $p->name }}</td>
+                            <td class="px-4 py-3">
+                                @if ($p->category)
+                                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">{{ $p->category }}</span>
+                                @else
+                                    <span class="text-gray-300 dark:text-slate-600">-</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-gray-500 dark:text-slate-400">
+                                {{ $p->sku ?: '-' }} @if($p->barcode) &bull; {{ $p->barcode }} @endif
+                            </td>
+                            @if ($this->isOwner)
+                                <td class="px-4 py-3 text-right text-gray-600 dark:text-slate-300">Rp {{ number_format($p->cost_price ?? 0, 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right text-gray-600 dark:text-slate-300">{{ $p->margin_percent !== null ? number_format($p->margin_percent, 1) . '%' : '-' }}</td>
+                            @endif
+                            <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">Rp {{ number_format($p->sell_price ?? 0, 0, ',', '.') }}</td>
+                            <td class="px-4 py-3">
+                                @if ($p->is_active)
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Aktif</span>
+                                @else
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-slate-400"><span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span> Nonaktif</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button wire:click="openHistory('{{ $p->id }}')" class="px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800" title="Riwayat harga">Riwayat</button>
+                                    <button wire:click="openEditProduct('{{ $p->id }}')" class="px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-slate-200 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800">Ubah</button>
+                                    <button wire:click="toggleProduct('{{ $p->id }}')" class="px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-slate-300 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800">{{ $p->is_active ? 'Nonaktifkan' : 'Aktifkan' }}</button>
+                                    <button wire:click="deleteProduct('{{ $p->id }}')" wire:confirm="Hapus {{ $p->name }}?" class="px-2.5 py-1.5 text-xs font-medium text-red-600 rounded-md hover:bg-red-50">Hapus</button>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="8" class="px-4 py-12 text-center text-sm text-gray-500 dark:text-slate-400">Belum ada sparepart. Klik "Tambah Sparepart" untuk mulai.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
     @else
-    <button type="button" wire:click="openCreateService" class="{{ $btnPrimary }}">
-        <span class="text-base">+</span> Tambah Jasa
-    </button>
+    {{-- Tabel Jasa --}}
+    <div class="overflow-hidden bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-800">
+                    <tr class="text-xs tracking-wider text-left text-gray-500 dark:text-slate-400 uppercase">
+                        <th class="px-4 py-3 font-semibold">Kode</th>
+                        <th class="px-4 py-3 font-semibold">Nama Jasa</th>
+                        <th class="px-4 py-3 font-semibold text-right">Harga</th>
+                        <th class="px-4 py-3 font-semibold">Status</th>
+                        <th class="px-4 py-3 font-semibold text-right">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
+                    @forelse ($this->serviceItems as $s)
+                        <tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 {{ $s->is_active ? '' : 'opacity-60' }}">
+                            <td class="px-4 py-3 text-gray-500 dark:text-slate-400">{{ $s->code ?: '-' }}</td>
+                            <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ $s->name }}</td>
+                            <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">Rp {{ number_format($s->price ?? 0, 0, ',', '.') }}</td>
+                            <td class="px-4 py-3">
+                                @if ($s->is_active)
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Aktif</span>
+                                @else
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-slate-400"><span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span> Nonaktif</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center justify-end gap-1">
+                                    <button wire:click="openEditService('{{ $s->id }}')" class="px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-slate-200 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800">Ubah</button>
+                                    <button wire:click="toggleService('{{ $s->id }}')" class="px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-slate-300 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800">{{ $s->is_active ? 'Nonaktifkan' : 'Aktifkan' }}</button>
+                                    <button wire:click="deleteService('{{ $s->id }}')" wire:confirm="Hapus {{ $s->name }}?" class="px-2.5 py-1.5 text-xs font-medium text-red-600 rounded-md hover:bg-red-50">Hapus</button>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="px-4 py-12 text-center text-sm text-gray-500 dark:text-slate-400">Belum ada jasa servis. Klik "Tambah Jasa" untuk mulai.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
     @endif
-</div>
 
-{{-- ===== PRODUCT TABLE ===== --}}
-@if($tab === 'product')
-<div class="bg-white rounded-2xl shadow-sm overflow-hidden">
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead class="bg-slate-50 border-b border-slate-100">
-            <tr class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
-                <th class="text-left px-5 py-3">Nama Sparepart</th>
-                <th class="text-left px-5 py-3">SKU / Barcode</th>
-                <th class="text-right px-5 py-3">Harga Beli</th>
-                <th class="text-right px-5 py-3">Harga Jual</th>
-                <th class="text-right px-5 py-3">Margin</th>
-                <th class="text-center px-5 py-3">Status</th>
-                <th class="text-right px-5 py-3">Aksi</th>
-            </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-            @forelse($this->products as $product)
-            @php
-            $margin = $product->cost_price > 0
-                ? round((($product->sell_price - $product->cost_price) / $product->cost_price) * 100, 1)
-                : null;
-            @endphp
-            <tr class="hover:bg-stone-50 transition-colors group">
-                <td class="px-5 py-3.5">
-                    <div class="flex items-center gap-3">
-                        <div class="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-sm shrink-0">📦</div>
-                        <span class="font-semibold text-slate-900">{{ $product->name }}</span>
+    {{-- Modal Sparepart --}}
+    @if ($showProductModal)
+        <div class="fixed inset-0 z-50 flex items-end justify-center p-0 bg-black/50 sm:items-center sm:p-4" wire:key="modal-product">
+            <div class="w-full max-w-lg bg-white dark:bg-slate-900 shadow-xl rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-800">
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ $editingProduct ? 'Ubah Sparepart' : 'Tambah Sparepart' }}</h2>
+                    <button wire:click="$set('showProductModal', false)" class="p-1 text-gray-400 dark:text-slate-500 rounded hover:bg-gray-100 dark:hover:bg-slate-800">&#x2715;</button>
+                </div>
+                <form wire:submit="saveProduct" class="px-5 py-4 space-y-4">
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Nama Sparepart</label>
+                        <input type="text" wire:model="pName" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        @error('pName') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
-                </td>
-                <td class="px-5 py-3.5">
-                    <div class="space-y-0.5">
-                        @if($product->sku)
-                        <p class="font-mono-jet text-[11px] text-slate-500 font-medium">SKU: {{ $product->sku }}</p>
-                        @endif
-                        @if($product->barcode)
-                        <p class="font-mono-jet text-[11px] text-slate-400">📈 {{ $product->barcode }}</p>
-                        @endif
-                        @if(!$product->sku && !$product->barcode)
-                        <span class="text-slate-300 text-xs">—</span>
-                        @endif
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">SKU</label>
+                            <input type="text" wire:model="pSku" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Barcode</label>
+                            <input type="text" wire:model="pBarcode" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        </div>
                     </div>
-                </td>
-                <td class="px-5 py-3.5 text-right">
-                    <span class="font-mono-jet text-xs text-slate-600">Rp {{ number_format($product->cost_price, 0, ',', '.') }}</span>
-                </td>
-                <td class="px-5 py-3.5 text-right">
-                    <span class="font-mono-jet text-sm font-bold text-slate-900">Rp {{ number_format($product->sell_price, 0, ',', '.') }}</span>
-                </td>
-                <td class="px-5 py-3.5 text-right">
-                    @if($margin !== null)
-                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full
-                                {{ $margin >= 20 ? 'bg-emerald-100 text-emerald-700' : ($margin >= 10 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600') }}">
-                        {{ $margin }}%
-                    </span>
-                    @else
-                    <span class="text-slate-300 text-xs">—</span>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Kategori</label>
+                        <input type="text" list="kategori-list" wire:model="pCategory" placeholder="contoh: Oli, Ban, Kelistrikan"
+                               class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        <datalist id="kategori-list">
+                            @foreach ($this->categories as $cat)
+                                <option value="{{ $cat }}"></option>
+                            @endforeach
+                        </datalist>
+                    </div>
+
+                    @if ($this->isOwner)
+                        <div class="grid grid-cols-2 gap-3 p-3 border border-amber-100 rounded-lg bg-amber-50/50">
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Harga Beli (Pokok)</label>
+                                <input type="number" step="1" min="0" wire:model="pCostPrice" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                                @error('pCostPrice') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Margin (%)</label>
+                                <input type="number" step="0.5" min="0" wire:model="pMarginPercent" placeholder="kosongkan = pakai margin kategori" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                                @error('pMarginPercent') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
                     @endif
-                </td>
-                <td class="px-5 py-3.5 text-center">
-                    <button type="button" wire:click="toggleProduct('{{ $product->id }}')"
-                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                                   {{ $product->is_active ? 'bg-emerald-500' : 'bg-slate-300' }}">
-                        <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform
-                                     {{ $product->is_active ? 'translate-x-6' : 'translate-x-1' }}"></span>
-                    </button>
-                </td>
-                <td class="px-5 py-3.5">
-                    <div class="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                        <button type="button" wire:click="openEditProduct('{{ $product->id }}')"
-                                class="text-slate-500 hover:text-amber-600 p-1.5 rounded-lg hover:bg-amber-50 transition-colors">
-                            ✏️
-                        </button>
-                        <button type="button" wire:click="deleteProduct('{{ $product->id }}')"
-                                wire:confirm="Hapus sparepart {{ $product->name }}?"
-                                class="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
-                            🗑️
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            @empty
-            <tr>
-                <td colspan="7" class="text-center py-14 text-slate-400">
-                    <div class="text-4xl mb-3 opacity-40">📦</div>
-                    <p class="font-medium text-slate-500">Belum ada data sparepart</p>
-                    @if($search)<p class="text-xs mt-1">Tidak ditemukan "{{ $search }}"</p>@endif
-                </td>
-            </tr>
-            @endforelse
-            </tbody>
-        </table>
-    </div>
-    @if($this->products->isNotEmpty())
-    <div class="px-6 py-3 bg-slate-50 border-t border-slate-100">
-        <p class="text-xs text-slate-400"><span class="font-semibold text-slate-600">{{ $this->products->count() }}</span> sparepart ditampilkan</p>
-    </div>
-    @endif
-</div>
-@endif
 
-{{-- ===== SERVICE TABLE ===== --}}
-@if($tab === 'service')
-<div class="bg-white rounded-2xl shadow-sm overflow-hidden">
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead class="bg-slate-50 border-b border-slate-100">
-            <tr class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
-                <th class="text-left px-5 py-3">Nama Jasa</th>
-                <th class="text-left px-5 py-3">Kode</th>
-                <th class="text-right px-5 py-3">Harga</th>
-                <th class="text-center px-5 py-3">Status</th>
-                <th class="text-right px-5 py-3">Aksi</th>
-            </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-            @forelse($this->serviceItems as $service)
-            <tr class="hover:bg-stone-50 transition-colors group">
-                <td class="px-5 py-3.5">
-                    <div class="flex items-center gap-3">
-                        <div class="h-8 w-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm shrink-0">🔧</div>
-                        <span class="font-semibold text-slate-900">{{ $service->name }}</span>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Harga Jual</label>
+                        <input type="number" step="1" min="0" wire:model="pSellPrice" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        @error('pSellPrice') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
-                </td>
-                <td class="px-5 py-3.5">
-                    @if($service->code)
-                    <span class="font-mono-jet text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">{{ $service->code }}</span>
-                    @else
-                    <span class="text-slate-300 text-xs">—</span>
+
+                    @if ($editingProduct)
+                        <div>
+                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Keterangan Perubahan Harga <span class="text-gray-400">(wajib jika harga berubah)</span></label>
+                            <textarea wire:model="priceChangeNote" rows="2" placeholder="contoh: kenaikan harga dari supplier" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500"></textarea>
+                            @error('priceChangeNote') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
                     @endif
-                </td>
-                <td class="px-5 py-3.5 text-right">
-                    <span class="font-mono-jet text-sm font-bold text-slate-900">Rp {{ number_format($service->price, 0, ',', '.') }}</span>
-                </td>
-                <td class="px-5 py-3.5 text-center">
-                    <button type="button" wire:click="toggleService('{{ $service->id }}')"
-                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                                   {{ $service->is_active ? 'bg-emerald-500' : 'bg-slate-300' }}">
-                        <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform
-                                     {{ $service->is_active ? 'translate-x-6' : 'translate-x-1' }}"></span>
-                    </button>
-                </td>
-                <td class="px-5 py-3.5">
-                    <div class="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                        <button type="button" wire:click="openEditService('{{ $service->id }}')"
-                                class="text-slate-500 hover:text-amber-600 p-1.5 rounded-lg hover:bg-amber-50 transition-colors">
-                            ✏️
-                        </button>
-                        <button type="button" wire:click="deleteService('{{ $service->id }}')"
-                                wire:confirm="Hapus jasa {{ $service->name }}?"
-                                class="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
-                            🗑️
-                        </button>
+
+                    <label class="flex items-center gap-2.5">
+                        <input type="checkbox" wire:model="pActive" class="text-blue-600 border-gray-300 dark:border-slate-700 rounded focus:ring-blue-500">
+                        <span class="text-sm text-gray-700 dark:text-slate-200">Aktif dijual</span>
+                    </label>
+
+                    <div class="flex gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+                        <button type="button" wire:click="$set('showProductModal', false)" class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-800 rounded-lg hover:bg-gray-200">Batal</button>
+                        <button type="submit" class="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">Simpan</button>
                     </div>
-                </td>
-            </tr>
-            @empty
-            <tr>
-                <td colspan="5" class="text-center py-14 text-slate-400">
-                    <div class="text-4xl mb-3 opacity-40">🔧</div>
-                    <p class="font-medium text-slate-500">Belum ada data jasa servis</p>
-                    @if($search)<p class="text-xs mt-1">Tidak ditemukan "{{ $search }}"</p>@endif
-                </td>
-            </tr>
-            @endforelse
-            </tbody>
-        </table>
-    </div>
-    @if($this->serviceItems->isNotEmpty())
-    <div class="px-6 py-3 bg-slate-50 border-t border-slate-100">
-        <p class="text-xs text-slate-400"><span class="font-semibold text-slate-600">{{ $this->serviceItems->count() }}</span> jasa servis ditampilkan</p>
-    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal Riwayat Harga --}}
+    @if ($showHistoryModal)
+        <div class="fixed inset-0 z-50 flex items-end justify-center p-0 bg-black/50 sm:items-center sm:p-4" wire:key="modal-history">
+            <div class="w-full max-w-lg bg-white dark:bg-slate-900 shadow-xl rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-800">
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">Riwayat Perubahan Harga</h2>
+                    <button wire:click="closeHistory" class="p-1 text-gray-400 dark:text-slate-500 rounded hover:bg-gray-100 dark:hover:bg-slate-800">&#x2715;</button>
+                </div>
+                <div class="px-5 py-4 space-y-3">
+                    @forelse ($this->productHistory as $h)
+                        <div class="p-3 border border-gray-100 dark:border-slate-800 rounded-lg">
+                            <div class="flex items-center justify-between text-xs text-gray-400 dark:text-slate-500">
+                                <span>{{ $h->created_at?->format('d M Y, H:i') }}</span>
+                                <span>{{ $h->changedBy?->name ?? 'Sistem' }}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mt-2 text-sm">
+                                @if ($this->isOwner)
+                                    <div>
+                                        <p class="text-xs text-gray-400">Harga Beli</p>
+                                        <p class="text-gray-700 dark:text-slate-200">Rp {{ number_format($h->old_cost_price,0,',','.') }} &rarr; Rp {{ number_format($h->new_cost_price,0,',','.') }}</p>
+                                    </div>
+                                @endif
+                                <div>
+                                    <p class="text-xs text-gray-400">Harga Jual</p>
+                                    <p class="text-gray-700 dark:text-slate-200">Rp {{ number_format($h->old_sell_price,0,',','.') }} &rarr; Rp {{ number_format($h->new_sell_price,0,',','.') }}</p>
+                                </div>
+                            </div>
+                            @if ($h->note)
+                                <p class="mt-2 text-sm text-slate-600 dark:text-slate-300 italic">"{{ $h->note }}"</p>
+                            @endif
+                        </div>
+                    @empty
+                        <p class="py-8 text-sm text-center text-gray-400 dark:text-slate-500">Belum ada riwayat perubahan harga untuk sparepart ini.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal Margin per Kategori (Owner) --}}
+    @if ($showMarginModal && $this->isOwner)
+        <div class="fixed inset-0 z-50 flex items-end justify-center p-0 bg-black/50 sm:items-center sm:p-4" wire:key="modal-margin">
+            <div class="w-full max-w-lg bg-white dark:bg-slate-900 shadow-xl rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-800">
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">Margin per Kategori</h2>
+                    <button wire:click="$set('showMarginModal', false)" class="p-1 text-gray-400 dark:text-slate-500 rounded hover:bg-gray-100 dark:hover:bg-slate-800">&#x2715;</button>
+                </div>
+                <div class="px-5 py-4 space-y-4">
+                    <form wire:submit="saveCategoryMargin" class="flex items-end gap-2">
+                        <div class="flex-1">
+                            <label class="block mb-1 text-xs font-medium text-gray-700 dark:text-slate-200">Kategori</label>
+                            <input type="text" list="kategori-list" wire:model="marginCategory" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div class="w-28">
+                            <label class="block mb-1 text-xs font-medium text-gray-700 dark:text-slate-200">Margin (%)</label>
+                            <input type="number" step="0.5" min="0" wire:model="marginPercentInput" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">{{ $editingMarginId ? 'Simpan' : 'Tambah' }}</button>
+                    </form>
+                    @error('marginCategory') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                    @error('marginPercentInput') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+
+                    <div class="divide-y divide-gray-100 dark:divide-slate-800 border border-gray-100 dark:border-slate-800 rounded-lg">
+                        @forelse ($this->categoryMargins as $m)
+                            <div class="flex items-center justify-between px-3 py-2">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800 dark:text-slate-200">{{ $m->category }}</p>
+                                    <p class="text-xs text-gray-400">Margin default: {{ number_format($m->margin_percent,1) }}%</p>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button wire:click="editCategoryMargin('{{ $m->id }}')" class="px-2 py-1 text-xs text-gray-600 dark:text-slate-300 rounded hover:bg-gray-100 dark:hover:bg-slate-800">Ubah</button>
+                                    <button wire:click="deleteCategoryMargin('{{ $m->id }}')" wire:confirm="Hapus margin kategori {{ $m->category }}?" class="px-2 py-1 text-xs text-red-600 rounded hover:bg-red-50">Hapus</button>
+                                </div>
+                            </div>
+                        @empty
+                            <p class="px-3 py-6 text-sm text-center text-gray-400">Belum ada margin per kategori. Item tanpa margin sendiri akan pakai margin kategori ini.</p>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal Jasa --}}
+    @if ($showServiceModal)
+        <div class="fixed inset-0 z-50 flex items-end justify-center p-0 bg-black/50 sm:items-center sm:p-4" wire:key="modal-service">
+            <div class="w-full max-w-lg bg-white dark:bg-slate-900 shadow-xl rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-800">
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ $editingService ? 'Ubah Jasa' : 'Tambah Jasa' }}</h2>
+                    <button wire:click="$set('showServiceModal', false)" class="p-1 text-gray-400 dark:text-slate-500 rounded hover:bg-gray-100 dark:hover:bg-slate-800">&#x2715;</button>
+                </div>
+                <form wire:submit="saveService" class="px-5 py-4 space-y-4">
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Kode Jasa</label>
+                        <input type="text" wire:model="sCode" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Nama Jasa</label>
+                        <input type="text" wire:model="sName" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        @error('sName') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-slate-200">Harga</label>
+                        <input type="number" step="1" min="0" wire:model="sPrice" class="w-full text-sm border-gray-300 dark:border-slate-700 rounded-lg focus:border-blue-500 focus:ring-blue-500">
+                        @error('sPrice') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <label class="flex items-center gap-2.5">
+                        <input type="checkbox" wire:model="sActive" class="text-blue-600 border-gray-300 dark:border-slate-700 rounded focus:ring-blue-500">
+                        <span class="text-sm text-gray-700 dark:text-slate-200">Aktif ditawarkan</span>
+                    </label>
+                    <div class="flex gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+                        <button type="button" wire:click="$set('showServiceModal', false)" class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-800 rounded-lg hover:bg-gray-200">Batal</button>
+                        <button type="submit" class="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     @endif
 </div>
-@endif
-
-{{-- ===== PRODUCT MODAL ===== --}}
-@if($showProductModal)
-<div class="fixed inset-0 z-50 flex items-center justify-center">
-    <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" wire:click="$set('showProductModal', false)"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 z-10">
-        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
-                <h3 class="font-display text-[22px] font-bold text-slate-900">{{ $editingProduct ? 'Edit Sparepart' : 'Tambah Sparepart' }}</h3>
-                <p class="text-xs text-slate-400">Data produk / spare part bengkel</p>
-            </div>
-            <button type="button" wire:click="$set('showProductModal', false)" class="text-slate-400 hover:text-slate-700 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-xl">×</button>
-        </div>
-        <div class="px-6 py-5 space-y-4">
-            <div>
-                <label class="{{ $labelCls }}">Nama Sparepart <span class="text-red-500">*</span></label>
-                <input wire:model="pName" type="text" placeholder="Nama produk / sparepart" class="{{ $inputCls }}">
-                @error('pName') <p class="{{ $errorCls }}">{{ $message }}</p> @enderror
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="{{ $labelCls }}">SKU</label>
-                    <input wire:model="pSku" type="text" placeholder="Kode SKU" class="{{ $inputCls }} font-mono-jet">
-                </div>
-                <div>
-                    <label class="{{ $labelCls }}">Barcode</label>
-                    <input wire:model="pBarcode" type="text" placeholder="Kode barcode" class="{{ $inputCls }} font-mono-jet">
-                </div>
-                <div>
-                    <label class="{{ $labelCls }}">Harga Beli (Rp)</label>
-                    <input wire:model="pCostPrice" type="number" min="0" step="100" placeholder="0" class="{{ $inputCls }} font-mono-jet">
-                    @error('pCostPrice') <p class="{{ $errorCls }}">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="{{ $labelCls }}">Harga Jual (Rp) <span class="text-red-500">*</span></label>
-                    <input wire:model="pSellPrice" type="number" min="0" step="100" placeholder="0" class="{{ $inputCls }} font-mono-jet">
-                    @error('pSellPrice') <p class="{{ $errorCls }}">{{ $message }}</p> @enderror
-                </div>
-            </div>
-            <div class="flex items-center gap-3 py-1">
-                <button type="button" wire:click="$toggle('pActive')"
-                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $pActive ? 'bg-emerald-500' : 'bg-slate-300' }}">
-                    <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform {{ $pActive ? 'translate-x-6' : 'translate-x-1' }}"></span>
-                </button>
-                <span class="text-sm font-medium text-slate-700">{{ $pActive ? 'Aktif (tampil di POS)' : 'Nonaktif' }}</span>
-            </div>
-        </div>
-        <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-            <button type="button" wire:click="$set('showProductModal', false)" class="{{ $btnGhost }}">Batal</button>
-            <button type="button" wire:click="saveProduct" wire:loading.attr="disabled" class="{{ $btnPrimary }}">
-                <span wire:loading.remove wire:target="saveProduct">💾 Simpan</span>
-                <span wire:loading wire:target="saveProduct">Menyimpan...</span>
-            </button>
-        </div>
-    </div>
-</div>
-@endif
-
-{{-- ===== SERVICE MODAL ===== --}}
-@if($showServiceModal)
-<div class="fixed inset-0 z-50 flex items-center justify-center">
-    <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" wire:click="$set('showServiceModal', false)"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 z-10">
-        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
-                <h3 class="font-display text-[22px] font-bold text-slate-900">{{ $editingService ? 'Edit Jasa' : 'Tambah Jasa Servis' }}</h3>
-                <p class="text-xs text-slate-400">Item pekerjaan / jasa bengkel</p>
-            </div>
-            <button type="button" wire:click="$set('showServiceModal', false)" class="text-slate-400 hover:text-slate-700 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-xl">×</button>
-        </div>
-        <div class="px-6 py-5 space-y-4">
-            <div>
-                <label class="{{ $labelCls }}">Nama Jasa <span class="text-red-500">*</span></label>
-                <input wire:model="sName" type="text" placeholder="Nama pekerjaan / jasa" class="{{ $inputCls }}">
-                @error('sName') <p class="{{ $errorCls }}">{{ $message }}</p> @enderror
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="{{ $labelCls }}">Kode Jasa</label>
-                    <input wire:model="sCode" type="text" placeholder="Kode unik" class="{{ $inputCls }} font-mono-jet">
-                </div>
-                <div>
-                    <label class="{{ $labelCls }}">Harga (Rp) <span class="text-red-500">*</span></label>
-                    <input wire:model="sPrice" type="number" min="0" step="500" placeholder="0" class="{{ $inputCls }} font-mono-jet">
-                    @error('sPrice') <p class="{{ $errorCls }}">{{ $message }}</p> @enderror
-                </div>
-            </div>
-            <div class="flex items-center gap-3 py-1">
-                <button type="button" wire:click="$toggle('sActive')"
-                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $sActive ? 'bg-emerald-500' : 'bg-slate-300' }}">
-                    <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform {{ $sActive ? 'translate-x-6' : 'translate-x-1' }}"></span>
-                </button>
-                <span class="text-sm font-medium text-slate-700">{{ $sActive ? 'Aktif (tersedia di POS)' : 'Nonaktif' }}</span>
-            </div>
-        </div>
-        <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-            <button type="button" wire:click="$set('showServiceModal', false)" class="{{ $btnGhost }}">Batal</button>
-            <button type="button" wire:click="saveService" wire:loading.attr="disabled" class="{{ $btnPrimary }}">
-                <span wire:loading.remove wire:target="saveService">💾 Simpan</span>
-                <span wire:loading wire:target="saveService">Menyimpan...</span>
-            </button>
-        </div>
-    </div>
-</div>
-@endif
-</div>{{-- root wrapper --}}
