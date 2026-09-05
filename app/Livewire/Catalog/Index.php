@@ -2,10 +2,15 @@
 
 namespace App\Livewire\Catalog;
 
+use App\Domains\Catalog\Models\Brand;
 use App\Domains\Catalog\Models\CategoryMargin;
 use App\Domains\Catalog\Models\Product;
 use App\Domains\Catalog\Models\ProductPriceHistory;
+use App\Domains\Catalog\Models\ProductPriceLevel;
 use App\Domains\Catalog\Models\ServiceItem;
+use App\Domains\Catalog\Models\Unit;
+use App\Domains\Inventory\Models\Rack;
+use App\Domains\Inventory\Models\StockMovement;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -30,9 +35,25 @@ class Index extends Component
     public bool    $pActive          = true;
     public string  $priceChangeNote  = '';
 
+    // ── Sesi 14: merek/satuan (data master dinamis) & beberapa model harga ──
+    public ?string $pBrandId  = null;
+    public ?string $pUnitId   = null;
+    public string  $pPriceMode = 'single'; // single | level
+    public string  $pLevel2   = '';
+    public string  $pLevel3   = '';
+    public string  $pLevel4   = '';
+
     // ── Riwayat harga ───────────────────────────────
     public bool    $showHistoryModal = false;
     public ?string $historyProductId = null;
+
+    // ── Sesi 14: Kartu Stok (riwayat stok per item) ───────────
+    public bool    $showStockCardModal = false;
+    public ?string $stockCardProductId = null;
+
+    // ── Sesi 14: Cetak Barcode ───────────
+    public bool    $showBarcodeModal    = false;
+    public ?string $barcodeProductId    = null;
 
     // ── Margin per kategori (owner) ────────────────────
     public bool    $showMarginModal    = false;
@@ -60,7 +81,7 @@ class Index extends Component
     #[Computed]
     public function products(): Collection
     {
-        $q = Product::latest();
+        $q = Product::with(['brand', 'unit'])->latest();
         if ($this->search !== '' && $this->tab === 'product') {
             $s = $this->search;
             $q->where(fn ($qu) => $qu
@@ -108,6 +129,18 @@ class Index extends Component
     }
 
     #[Computed]
+    public function brands(): Collection
+    {
+        return Brand::where('is_active', true)->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function units(): Collection
+    {
+        return Unit::where('is_active', true)->orderBy('name')->get();
+    }
+
+    #[Computed]
     public function categoryMargins(): Collection
     {
         return CategoryMargin::orderBy('category')->get();
@@ -124,6 +157,42 @@ class Index extends Component
             ->where('product_id', $this->historyProductId)
             ->latest()
             ->get();
+    }
+
+    // ── Sesi 14: Kartu Stok ──────────────────
+
+    #[Computed]
+    public function stockCardProduct(): ?Product
+    {
+        if (! $this->stockCardProductId) {
+            return null;
+        }
+        return Product::find($this->stockCardProductId);
+    }
+
+    #[Computed]
+    public function stockCardMovements(): Collection
+    {
+        if (! $this->stockCardProductId) {
+            return collect();
+        }
+
+        return StockMovement::with('branch')
+            ->where('product_id', $this->stockCardProductId)
+            ->latest()
+            ->limit(100)
+            ->get();
+    }
+
+    // ── Sesi 14: Barcode ──────────────────
+
+    #[Computed]
+    public function barcodeProduct(): ?Product
+    {
+        if (! $this->barcodeProductId) {
+            return null;
+        }
+        return Product::find($this->barcodeProductId);
     }
 
     // ── Render ──────────────────────────────
@@ -150,10 +219,11 @@ class Index extends Component
 
     public function openCreateProduct(): void
     {
-        $this->reset(['productId', 'pSku', 'pBarcode', 'pName', 'pCostPrice', 'pSellPrice', 'pCategory', 'pMarginPercent', 'priceChangeNote']);
+        $this->reset(['productId', 'pSku', 'pBarcode', 'pName', 'pCostPrice', 'pSellPrice', 'pCategory', 'pMarginPercent', 'priceChangeNote', 'pBrandId', 'pUnitId', 'pLevel2', 'pLevel3', 'pLevel4']);
         $this->resetErrorBag();
-        $this->pActive        = true;
-        $this->editingProduct = false;
+        $this->pActive          = true;
+        $this->pPriceMode       = 'single';
+        $this->editingProduct   = false;
         $this->showProductModal = true;
     }
 
@@ -168,6 +238,14 @@ class Index extends Component
         $this->pCategory    = $p->category ?? '';
         $this->pActive      = (bool) $p->is_active;
         $this->priceChangeNote = '';
+        $this->pBrandId     = $p->brand_id;
+        $this->pUnitId      = $p->unit_id;
+        $this->pPriceMode   = $p->price_mode ?? 'single';
+
+        $levels = $p->priceLevels()->get()->keyBy('level_no');
+        $this->pLevel2 = $levels->get(2) ? (string) (float) $levels->get(2)->price : '';
+        $this->pLevel3 = $levels->get(3) ? (string) (float) $levels->get(3)->price : '';
+        $this->pLevel4 = $levels->get(4) ? (string) (float) $levels->get(4)->price : '';
 
         if ($this->isOwner) {
             $this->pCostPrice     = (string) (float) $p->cost_price;
@@ -190,6 +268,7 @@ class Index extends Component
             'pName'      => 'required|min:2',
             'pSellPrice' => 'required|numeric|min:0',
             'pCategory'  => 'nullable|string|max:100',
+            'pPriceMode' => 'required|in:single,level',
         ];
 
         if ($isOwner) {
@@ -214,6 +293,9 @@ class Index extends Component
             'sell_price' => $newSellPrice,
             'is_active'  => $this->pActive,
             'category'   => $this->pCategory ?: null,
+            'brand_id'   => $this->pBrandId ?: null,
+            'unit_id'    => $this->pUnitId ?: null,
+            'price_mode' => $this->pPriceMode,
         ];
 
         if ($isOwner) {
@@ -251,13 +333,26 @@ class Index extends Component
 
         if ($existing) {
             $existing->update($data);
+            $product = $existing;
             $msg = 'Sparepart berhasil diperbarui.';
         } else {
             if (! $isOwner) {
                 $data['cost_price'] = 0.0;
             }
-            Product::create($data);
+            $product = Product::create($data);
             $msg = 'Sparepart baru berhasil ditambahkan.';
+        }
+
+        // Sesi 14: simpan Level Harga 2-4 (mengikuti model harga iPos 5)
+        foreach ([2 => $this->pLevel2, 3 => $this->pLevel3, 4 => $this->pLevel4] as $levelNo => $val) {
+            if ($this->pPriceMode === 'level' && $val !== '' && $val !== null) {
+                ProductPriceLevel::updateOrCreate(
+                    ['product_id' => $product->id, 'level_no' => $levelNo],
+                    ['level_name' => 'Level Harga ' . $levelNo, 'price' => (float) $val]
+                );
+            } else {
+                ProductPriceLevel::where('product_id', $product->id)->where('level_no', $levelNo)->delete();
+            }
         }
 
         $this->showProductModal = false;
@@ -289,6 +384,34 @@ class Index extends Component
     {
         $this->showHistoryModal = false;
         $this->historyProductId = null;
+    }
+
+    // ── Sesi 14: Kartu Stok ──────────────────
+
+    public function openStockCard(string $productId): void
+    {
+        $this->stockCardProductId = $productId;
+        $this->showStockCardModal = true;
+    }
+
+    public function closeStockCard(): void
+    {
+        $this->showStockCardModal = false;
+        $this->stockCardProductId = null;
+    }
+
+    // ── Sesi 14: Barcode ──────────────────
+
+    public function openBarcode(string $productId): void
+    {
+        $this->barcodeProductId = $productId;
+        $this->showBarcodeModal = true;
+    }
+
+    public function closeBarcode(): void
+    {
+        $this->showBarcodeModal  = false;
+        $this->barcodeProductId  = null;
     }
 
     // ── Margin per kategori (owner only — diberi pagar di blade) ───
